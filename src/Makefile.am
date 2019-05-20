@@ -1,5 +1,8 @@
 # Makefile.am for samba-internal-dns-manager
 
+module_DATA = \
+	modules/SambaToolDnsAPI.py
+
 client_DATA = \
 	clients/samba-internal-dns-manager.py
 
