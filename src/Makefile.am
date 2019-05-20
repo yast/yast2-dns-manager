@@ -9,7 +9,8 @@ client_DATA = \
 yncludedir = @yncludedir@/samba-internal-dns-manager
 ynclude_DATA = \
 	include/samba-internal-dns-manager/wizards.py \
-	include/samba-internal-dns-manager/dialogs.py
+	include/samba-internal-dns-manager/dialogs.py \
+	include/samba-internal-dns-manager/complex.py
 
 desktop_DATA = \
 	desktop/yast2-samba-internal-dns-manager.desktop
