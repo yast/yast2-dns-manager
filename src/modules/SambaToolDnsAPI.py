@@ -22,7 +22,10 @@ def zonelist(server, username, password):
     output = StringIO()
     cmd = dns.cmd_zonelist()
     cmd.outf = output
-    cmd.run(server, 'longhorn', sambaopts=sambaopts, credopts=credopts)
+    try:
+        cmd.run(server, 'longhorn', sambaopts=sambaopts, credopts=credopts)
+    except CommandError:
+        return {}
     res = {}
     for zone in output.getvalue().split('\n\n'):
         if re.match('\d+ zone\(s\) found', zone.strip()):

@@ -69,8 +69,16 @@ class ConnectionDialog:
                 else:
                     continue
                 ycred = YCreds(self.creds)
-                ycred.Show()
-                break
+                def cred_valid():
+                    try:
+                        self.conn = Connection(self.lp, self.creds, self.server)
+                        return True
+                    except Exception as e:
+                        ycpbuiltins.y2error(str(e))
+                    return False
+                ycred.Show(cred_valid)
+                if self.conn:
+                    break
         UI.CloseDialog()
         return Connection(self.lp, self.creds, self.server)
 
