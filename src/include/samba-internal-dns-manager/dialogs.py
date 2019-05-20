@@ -57,6 +57,7 @@ class ConnectionDialog:
                 break
             elif ret == 'select':
                 UI.ChangeWidget('selection', 'Enabled', True)
+                UI.SetFocus('selection')
             elif ret == 'this':
                 UI.ChangeWidget('selection', 'Enabled', False)
             elif ret == 'ok':
@@ -68,7 +69,7 @@ class ConnectionDialog:
                     self.lp.set('realm', self.__fetch_domain().upper())
                 else:
                     continue
-                ycred = YCreds(self.creds)
+                ycred = YCreds(self.creds, auto_krb5_creds=False)
                 def cred_valid():
                     try:
                         self.conn = Connection(self.lp, self.creds, self.server)
@@ -112,13 +113,31 @@ class DNS:
                 break
             elif ret == 'connect':
                 self.conn = ConnectionDialog().Show()
+                UI.ReplaceWidget('dns_tree_repl', self.__dns_tree())
             UI.SetApplicationTitle('DNS Manager')
         return ret
+
+    def __dns_tree(self):
+        if self.conn:
+            forward_zones = self.conn.forward_zones()
+            reverse_zones = self.conn.reverse_zones()
+            forward_items = [Item(Id(zone), zone, False, []) for zone in forward_zones]
+            reverse_items = [Item(Id(zone), zone, False, []) for zone in reverse_zones]
+            tree = [Item(Id('server'), self.conn.server, True, [
+                        Item(Id('forward'), 'Forward Lookup Zones', False, forward_items),
+                        Item(Id('reverse'), 'Reverse Lookup Zones', False, reverse_items)
+                        ])
+                    ]
+        else:
+            tree = []
+        return Tree(Id('dns_tree'), Opt('notify', 'immediate', 'notifyContextMenu'), '', [
+            Item(Id('dns_edit'), 'DNS', True, tree)
+        ])
 
     def __dns_page(self):
         return HBox(
             HWeight(1, VBox(
-                ReplacePoint(Id('dns_tree'), Empty()),
+                ReplacePoint(Id('dns_tree_repl'), self.__dns_tree()),
             )),
             HWeight(2, ReplacePoint(Id('rightPane'), Empty()))
         )
