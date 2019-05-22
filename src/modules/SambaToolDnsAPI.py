@@ -75,6 +75,8 @@ def query(server, zone, name, rtype, username, password):
     for rec in results.rec:
         records[rec.dnsNodeName.str] = {}
         records[rec.dnsNodeName.str]['records'] = []
+        if rec.dwChildCount > 0:
+            records[rec.dnsNodeName.str]['children'] = query(server, zone, '%s.%s' % (rec.dnsNodeName.str, name if name != '@' else '%s.' % zone), rtype, username, password)
         for dns_rec in rec.records:
             record = {}
             if dns_rec.wType in [dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
