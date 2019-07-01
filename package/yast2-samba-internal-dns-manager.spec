@@ -31,14 +31,13 @@ Requires:       samba-python3
 Requires:       yast2
 Requires:       yast2-python3-bindings >= 4.0.0
 Requires:       yast2-adcommon-python
-BuildRequires:  autoconf
-BuildRequires:  automake
 BuildRequires:  perl-XML-Writer
 BuildRequires:  python3
 BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools
 BuildRequires:  yast2-testsuite
+BuildRequires:  rubygem(%rb_default_ruby_abi:yast-rake)
 
 %description
 DNS Manager for the Internal Samba Active Directory Domain Controller DNS server.
@@ -47,17 +46,17 @@ DNS Manager for the Internal Samba Active Directory Domain Controller DNS server
 %setup -q -n %{name}-v%{version}
 
 %build
-%yast_build
 
 %install
 %yast_install
+%yast_metainfo
 
 %files
-%defattr(-,root,root)
-%dir %{yast_yncludedir}/samba-internal-dns-manager
-%{yast_clientdir}/*.py
-%{yast_yncludedir}/samba-internal-dns-manager/*
-%{yast_desktopdir}/samba-internal-dns-manager.desktop
+%{yast_clientdir}
+%{yast_yncludedir}
+%{yast_desktopdir}
+%{yast_metainfodir}
+%{yast_moduledir}
 %doc %{yast_docdir}
 %license COPYING
 

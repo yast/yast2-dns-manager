@@ -16,8 +16,8 @@ X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=samba-internal-dns-manager
 
 Icon=yast2-samba-internal-dns-manager
-Exec=/usr/bin/xdg-su -c 'yast2 samba-internal-dns-manager qt'
+Exec=xdg-su -c "/sbin/yast2 samba-internal-dns-manager"
 
-Name=Samba Internal DNS Manager
+Name=YaST Samba Internal DNS Manager
 GenericName=DNS Manager for Samba Internal DNS
 StartupNotify=true
