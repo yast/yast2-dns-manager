@@ -5,7 +5,7 @@ Categories=Settings;System;Qt;X-SuSE-YaST;X-SuSE-YaST-Misc;
 X-KDE-ModuleType=Library
 X-KDE-HasReadOnlyMode=true
 X-KDE-Library=yast2
-X-SuSE-YaST-Call=samba-internal-dns-manager
+X-SuSE-YaST-Call=dns-manager
 
 X-SuSE-YaST-Group=Net_advanced
 X-SuSE-YaST-Argument=
@@ -13,10 +13,10 @@ X-SuSE-YaST-RootOnly=true
 X-SuSE-YaST-AutoInst=
 X-SuSE-YaST-Geometry=
 X-SuSE-YaST-SortKey=
-X-SuSE-YaST-AutoInstResource=samba-internal-dns-manager
+X-SuSE-YaST-AutoInstResource=dns-manager
 
-Icon=yast2-samba-internal-dns-manager
-Exec=xdg-su -c "/sbin/yast2 samba-internal-dns-manager"
+Icon=yast2-dns-manager
+Exec=xdg-su -c "/sbin/yast2 dns-manager"
 
 Name=YaST Samba Internal DNS Manager
 GenericName=DNS Manager for Samba Internal DNS

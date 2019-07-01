@@ -1,6 +1,6 @@
 from yast import ycpbuiltins
 import sys, traceback
-sys.path.append(sys.path[0]+"/../include/samba-internal-dns-manager")
+sys.path.append(sys.path[0]+"/../include/dns-manager")
 from wizards import DNSSequence
 
 if __name__ == "__main__":

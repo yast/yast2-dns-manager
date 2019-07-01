@@ -19,7 +19,7 @@ def DNSSequence():
     }
 
     Wizard.CreateDialog()
-    Wizard.SetTitleIcon('yast2-samba-internal-dns-manager')
+    Wizard.SetTitleIcon('yast2-dns-manager')
 
     ret = Sequencer.Run(aliases, sequence)
 

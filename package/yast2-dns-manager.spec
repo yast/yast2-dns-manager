@@ -1,5 +1,5 @@
 #
-# spec file for package yast2-samba-internal-dns-manager
+# spec file for package yast2-dns-manager
 #
 # Copyright (c) 2019 SUSE LINUX GmbH, Nuernberg, Germany.
 #
@@ -16,13 +16,13 @@
 #
 
 
-Name:           yast2-samba-internal-dns-manager
+Name:           yast2-dns-manager
 Version:        0.1
 Release:        0
 Summary:        Samba Internal DNS Manager
 License:        GPL-3.0-only
 Group:          Productivity/Networking/Samba
-Url:            http://www.github.com/yast/yast2-samba-internal-dns-manager
+Url:            http://www.github.com/yast/yast2-dns-manager
 Source:         %{name}-v%{version}.tar.bz2
 BuildArch:      noarch
 Requires:       krb5-client
