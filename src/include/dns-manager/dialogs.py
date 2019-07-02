@@ -11,6 +11,8 @@ from samba.net import Net
 from samba.dcerpc import nbt
 from samba import NTSTATUSError
 from complex import Connection
+import re
+from samba.dcerpc import dnsp
 
 class ConnectionDialog:
     def __init__(self):
@@ -114,8 +116,104 @@ class DNS:
             elif ret == 'connect':
                 self.conn = ConnectionDialog().Show()
                 UI.ReplaceWidget('dns_tree_repl', self.__dns_tree())
+            elif ret == 'dns_tree':
+                choice = UI.QueryWidget('dns_tree', 'Value')
+                if choice not in ['server', 'forward', 'reverse']:
+                    records = self.conn.records(choice)
+                    if records:
+                        UI.ReplaceWidget('rightPane', self.__rightpane(records, choice))
             UI.SetApplicationTitle('DNS Manager')
         return ret
+
+    def __dns_type_name(self, dns_type):
+        if dns_type == dnsp.DNS_TYPE_TOMBSTONE:
+            return '(TOMBSTONE)'
+        elif dns_type == dnsp.DNS_TYPE_A:
+            return 'Host (A)'
+        elif dns_type == dnsp.DNS_TYPE_NS:
+            return 'Name Server (NS)'
+        elif dns_type == dnsp.DNS_TYPE_MD:
+            return '(MD)'
+        elif dns_type == dnsp.DNS_TYPE_MF:
+            return '(MF)'
+        elif dns_type == dnsp.DNS_TYPE_CNAME:
+            return 'Alias (CNAME)'
+        elif dns_type == dnsp.DNS_TYPE_SOA:
+            return 'Start of Authority (SOA)'
+        elif dns_type == dnsp.DNS_TYPE_MB:
+            return 'Mailbox (MB)'
+        elif dns_type == dnsp.DNS_TYPE_MG:
+            return 'Mail Group (MG)'
+        elif dns_type == dnsp.DNS_TYPE_MR:
+            return 'Renamed Mailbox (MR)'
+        elif dns_type == dnsp.DNS_TYPE_NULL:
+            return '(NULL)'
+        elif dns_type == dnsp.DNS_TYPE_WKS:
+            return 'Well Known Services (WKS)'
+        elif dns_type == dnsp.DNS_TYPE_PTR:
+            return 'Pointer (PTR)'
+        elif dns_type == dnsp.DNS_TYPE_HINFO:
+            return 'Host Information (HINFO)'
+        elif dns_type == dnsp.DNS_TYPE_MINFO:
+            return 'Mailbox Information (MINFO)'
+        elif dns_type == dnsp.DNS_TYPE_MX:
+            return 'Mail Exchanger (MX)'
+        elif dns_type == dnsp.DNS_TYPE_TXT:
+            return 'Text (TXT)'
+        elif dns_type == dnsp.DNS_TYPE_RP:
+            return 'Responsible Person (RP)'
+        elif dns_type == dnsp.DNS_TYPE_AFSDB:
+            return 'AFS Database (AFSDB)'
+        elif dns_type == dnsp.DNS_TYPE_X25:
+            return 'X.25'
+        elif dns_type == dnsp.DNS_TYPE_ISDN:
+            return 'ISDN'
+        elif dns_type == dnsp.DNS_TYPE_RT:
+            return 'Route Through (RT)'
+        elif dns_type == dnsp.DNS_TYPE_SIG:
+            return 'Signature (SIG)'
+        elif dns_type == dnsp.DNS_TYPE_KEY:
+            return 'Public Key (KEY)'
+        elif dns_type == dnsp.DNS_TYPE_AAAA:
+            return 'IPv6 Host (AAAA)'
+        elif dns_type == dnsp.DNS_TYPE_LOC:
+            return '(LOC)'
+        elif dns_type == dnsp.DNS_TYPE_NXT:
+            return 'Next Domain (NXT)'
+        elif dns_type == dnsp.DNS_TYPE_SRV:
+            return 'Service Location (SRV)'
+        elif dns_type == dnsp.DNS_TYPE_ATMA:
+            return 'ATM Address (ATMA)'
+        elif dns_type == dnsp.DNS_TYPE_NAPTR:
+            return '(NAPTR)'
+        elif dns_type == dnsp.DNS_TYPE_DNAME:
+            return '(DNAME)'
+        elif dns_type == dnsp.DNS_TYPE_DS:
+            return '(DS)'
+        elif dns_type == dnsp.DNS_TYPE_RRSIG:
+            return '(RRSIG)'
+        elif dns_type == dnsp.DNS_TYPE_NSEC:
+            return '(NSEC)'
+        elif dns_type == dnsp.DNS_TYPE_DNSKEY:
+            return '(DNSKEY)'
+        elif dns_type == dnsp.DNS_TYPE_DHCID:
+            return '(DHCID)'
+        elif dns_type == dnsp.DNS_TYPE_ALL:
+            return '(ALL)'
+        elif dns_type == dnsp.DNS_TYPE_WINS:
+            return '(WINS)'
+        elif dns_type == dnsp.DNS_TYPE_WINSR:
+            return '(WINSR)'
+        else:
+            return 'Unknown'
+
+    def __rightpane(self, records, parent):
+        prepend = ''
+        m = re.match('(\d+\.\d+\.\d+)\.in\-addr\.arpa', parent)
+        if m:
+            prepend = '.'.join(reversed(m.group(1).split('.'))) + '.'
+        items = [Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(records[name]['records'][0]['type'])), records[name]['records'][0]['data'], '') for name in records.keys()]
+        return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
     def __dns_tree(self):
         if self.conn:
