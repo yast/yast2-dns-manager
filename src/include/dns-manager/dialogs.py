@@ -20,6 +20,7 @@ class ConnectionDialog:
         self.creds = Credentials()
         self.creds.guess(self.lp)
         self.server = None
+        self.conn = None
 
     def __fetch_server(self, address):
         net = Net(Credentials())
@@ -83,7 +84,7 @@ class ConnectionDialog:
                 if self.conn:
                     break
         UI.CloseDialog()
-        return Connection(self.lp, self.creds, self.server)
+        return self.conn
 
 class DNS:
     def __init__(self):
