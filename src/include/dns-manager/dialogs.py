@@ -213,7 +213,7 @@ class DNS:
         m = re.match('(\d+\.\d+\.\d+)\.in\-addr\.arpa', parent)
         if m:
             prepend = '.'.join(reversed(m.group(1).split('.'))) + '.'
-        items = [Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(records[name]['records'][0]['type'])), records[name]['records'][0]['data'], '') for name in records.keys()]
+        items = [Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(records[name]['records'][0]['type'])) if len(records[name]['records']) > 0 else '', records[name]['records'][0]['data'] if len(records[name]['records']) > 0 else '', '') for name in records.keys()]
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
     def __dns_tree(self):
