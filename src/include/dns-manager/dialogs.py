@@ -221,12 +221,20 @@ class DNS:
                 items.append(Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(records[name]['records'][0]['type'])) if len(records[name]['records']) > 0 else '', records[name]['records'][0]['data'] if len(records[name]['records']) > 0 else '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
+    def __tree_children(self, records, parent):
+        children = []
+        if records:
+            for child in records.keys():
+                if records[child]['dwChildCount'] > 0:
+                    children.append(Item(Id('%s.%s' % (child, parent)), child, False, self.__tree_children(records[child]['children'], '%s.%s' % (child, parent))))
+        return children
+
     def __dns_tree(self):
         if self.conn:
             forward_zones = self.conn.forward_zones()
             reverse_zones = self.conn.reverse_zones()
-            forward_items = [Item(Id(zone), zone, False, []) for zone in forward_zones]
-            reverse_items = [Item(Id(zone), zone, False, []) for zone in reverse_zones]
+            forward_items = [Item(Id(zone), zone, False, self.__tree_children(self.conn.records(zone), zone)) for zone in forward_zones]
+            reverse_items = [Item(Id(zone), zone, False, self.__tree_children(self.conn.records(zone), zone)) for zone in reverse_zones]
             tree = [Item(Id('server'), self.conn.server, True, [
                         Item(Id('forward'), 'Forward Lookup Zones', False, forward_items),
                         Item(Id('reverse'), 'Reverse Lookup Zones', False, reverse_items)
