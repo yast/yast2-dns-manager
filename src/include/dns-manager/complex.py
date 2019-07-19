@@ -23,5 +23,10 @@ class Connection:
     def reverse_zones(self):
         return self._reverse
 
-    def records(self, zone):
-        return SambaToolDnsAPI.query(self.server, zone, '@', 'ALL', self.creds.get_username(), self.creds.get_password())
+    def records(self, selection):
+        if selection in self._forward or selection in self._reverse:
+            return SambaToolDnsAPI.query(self.server, selection, '@', 'ALL', self.creds.get_username(), self.creds.get_password())
+        else:
+            matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if selection[-len(zone):] == zone]
+            zone = max(matching_zones, key=len)
+            return SambaToolDnsAPI.query(self.server, zone, selection, 'ALL', self.creds.get_username(), self.creds.get_password())
