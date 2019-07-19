@@ -28,5 +28,7 @@ class Connection:
             return SambaToolDnsAPI.query(self.server, selection, '@', 'ALL', self.creds.get_username(), self.creds.get_password())
         else:
             matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if selection[-len(zone):] == zone]
+            if len(matching_zones) == 0:
+                return {}
             zone = max(matching_zones, key=len)
             return SambaToolDnsAPI.query(self.server, zone, selection, 'ALL', self.creds.get_username(), self.creds.get_password())
