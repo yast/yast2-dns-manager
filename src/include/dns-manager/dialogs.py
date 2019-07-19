@@ -123,6 +123,10 @@ class DNS:
                     records = self.conn.records(choice)
                     if records:
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, choice))
+                elif choice in ['forward', 'reverse']:
+                    UI.ReplaceWidget('rightPane', self.__rightpane_zones(choice))
+                else:
+                    UI.ReplaceWidget('rightPane', Empty())
             UI.SetApplicationTitle('DNS Manager')
         return ret
 
@@ -207,6 +211,13 @@ class DNS:
             return '(WINSR)'
         else:
             return 'Unknown'
+
+    def __rightpane_zones(self, zone_type):
+        if zone_type == 'forward':
+            items = [Item(Id(zone), zone, '', '') for zone in self.conn.forward_zones()]
+        elif zone_type == 'reverse':
+            items = [Item(Id(zone), zone, '', '') for zone in self.conn.reverse_zones()]
+        return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Status'), items)
 
     def __rightpane(self, records, parent):
         prepend = ''
