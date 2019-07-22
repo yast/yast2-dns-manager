@@ -94,7 +94,7 @@ class DNS:
     def __setup_menus(self, mtype=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
                  {'title': 'Exit', 'id': 'abort', 'type': 'MenuEntry', 'parent': 'file'}]
-        if mtype and mtype in ['top', 'zones', 'zone', 'object']:
+        if mtype and mtype in ['top', 'zones', 'zone', 'folder', 'object']:
             menus.append({'title': 'Action', 'id': 'action', 'type': 'Menu'})
         if mtype and mtype == 'top':
             menus.append({'title': 'Connect to DNS Server...', 'id': 'connect', 'type': 'MenuEntry', 'parent': 'action'})
@@ -102,13 +102,17 @@ class DNS:
             menus.append({'title': 'New Zone...', 'id': 'new_zone', 'type': 'MenuEntry', 'parent': 'action'})
         elif mtype and mtype == 'zone':
             menus.append({'title': 'Reload', 'id': 'reload', 'type': 'MenuEntry', 'parent': 'action'})
-        if mtype and mtype in ['zone', 'object']:
+        if mtype and mtype in ['zone', 'folder']:
             menus.append({'title': 'New Host (A or AAAA)...', 'id': 'new_host', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Alias (CNAME)...', 'id': 'new_alias', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Mail Exchanger (MX)...', 'id': 'new_mx', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Domain...', 'id': 'new_domain', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Delegation...', 'id': 'new_delegation', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'Other New Records...', 'id': 'other_new_records', 'type': 'MenuEntry', 'parent': 'action'})
+        if mtype and mtype in ['folder', 'object']:
+            menus.append({'title': 'Delete', 'id': 'delete', 'type': 'MenuEntry', 'parent': 'action'})
+        if mtype and mtype == 'object':
+            menus.append({'title': 'Properties', 'id': 'properties', 'type': 'MenuEntry', 'parent': 'action'})
         CreateMenu(menus)
 
     def Show(self):
@@ -138,7 +142,7 @@ class DNS:
                     if choice in self.conn.forward_zones() or choice in self.conn.reverse_zones():
                         self.__setup_menus(mtype='zone')
                     else:
-                        self.__setup_menus(mtype='object')
+                        self.__setup_menus(mtype='folder')
                 elif choice in ['forward', 'reverse']:
                     UI.ReplaceWidget('rightPane', self.__rightpane_zones(choice))
                     self.__setup_menus(mtype='zones')
@@ -148,8 +152,29 @@ class DNS:
                 else:
                     UI.ReplaceWidget('rightPane', Empty())
                     self.__setup_menus()
+            elif ret == 'items':
+                top = UI.QueryWidget('dns_tree', 'Value')
+                choice = UI.QueryWidget('items', 'Value')
+                record = self.conn.records(top)[choice]
+                if 'dwChildCount' in record and record['dwChildCount'] > 0:
+                    if event['EventReason'] == 'Activated':
+                        nchoice = '%s.%s' % (choice, top)
+                        records = self.conn.records(nchoice)
+                        self.__tree_select(nchoice)
+                        UI.ReplaceWidget('rightPane', self.__rightpane(records, nchoice))
+                        UI.SetFocus('items')
+                    self.__setup_menus(mtype='folder')
+                else:
+                    if event['EventReason'] == 'Activated':
+                        pass
+                    else:
+                        self.__setup_menus(mtype='object')
             UI.SetApplicationTitle('DNS Manager')
         return ret
+
+    def __tree_select(self, choice):
+        UI.ReplaceWidget('dns_tree_repl', self.__dns_tree(choice))
+        UI.ChangeWidget('dns_tree', 'CurrentItem', Symbol(choice))
 
     def __dns_type_name(self, dns_type):
         if dns_type == dnsp.DNS_TYPE_TOMBSTONE:
@@ -253,23 +278,26 @@ class DNS:
                 items.append(Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(records[name]['records'][0]['type'])) if len(records[name]['records']) > 0 else '', records[name]['records'][0]['data'] if len(records[name]['records']) > 0 else '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
-    def __tree_children(self, records, parent):
+    def __tree_children(self, records, parent, expand=None):
         children = []
         if records:
             for child in records.keys():
                 if records[child]['dwChildCount'] > 0:
-                    children.append(Item(Id('%s.%s' % (child, parent)), child, False, self.__tree_children(records[child]['children'], '%s.%s' % (child, parent))))
+                    cid = '%s.%s' % (child, parent)
+                    children.append(Item(Id(cid), child, cid == expand[-len(cid):] if expand else False, self.__tree_children(records[child]['children'], cid, expand)))
         return children
 
-    def __dns_tree(self):
+    def __dns_tree(self, expand=None):
         if self.conn:
             forward_zones = self.conn.forward_zones()
             reverse_zones = self.conn.reverse_zones()
-            forward_items = [Item(Id(zone), zone, False, self.__tree_children(self.conn.records(zone), zone)) for zone in forward_zones]
-            reverse_items = [Item(Id(zone), zone, False, self.__tree_children(self.conn.records(zone), zone)) for zone in reverse_zones]
+            expand_forward = len([z for z in forward_zones if expand[-len(z):] == z]) > 0 if expand else False
+            expand_reverse = len([z for z in reverse_zones if expand[-len(z):] == z]) > 0 if expand else False
+            forward_items = [Item(Id(zone), zone, zone == expand[-len(zone):] if expand else False, self.__tree_children(self.conn.records(zone), zone, expand)) for zone in forward_zones]
+            reverse_items = [Item(Id(zone), zone, zone == expand[-len(zone):] if expand else False, self.__tree_children(self.conn.records(zone), zone, expand)) for zone in reverse_zones]
             tree = [Item(Id('server'), self.conn.server, True, [
-                        Item(Id('forward'), 'Forward Lookup Zones', False, forward_items),
-                        Item(Id('reverse'), 'Reverse Lookup Zones', False, reverse_items)
+                        Item(Id('forward'), 'Forward Lookup Zones', expand_forward, forward_items),
+                        Item(Id('reverse'), 'Reverse Lookup Zones', expand_reverse, reverse_items)
                         ])
                     ]
         else:
