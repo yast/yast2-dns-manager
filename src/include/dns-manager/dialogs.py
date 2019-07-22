@@ -155,6 +155,8 @@ class DNS:
             elif ret == 'items':
                 top = UI.QueryWidget('dns_tree', 'Value')
                 choice = UI.QueryWidget('items', 'Value')
+                if choice == '(same as parent folder)':
+                    choice = ''
                 record = self.conn.records(top)[choice]
                 if 'dwChildCount' in record and record['dwChildCount'] > 0:
                     if event['EventReason'] == 'Activated':
