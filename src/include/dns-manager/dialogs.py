@@ -314,7 +314,7 @@ class DNS:
                     else:
                         self.__setup_menus(mtype='object')
             UI.SetApplicationTitle('DNS Manager')
-        return ret
+        return Symbol(ret)
 
     def __tree_select(self, choice):
         UI.ReplaceWidget('dns_tree_repl', self.__dns_tree(choice))
