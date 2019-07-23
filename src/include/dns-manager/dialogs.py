@@ -157,8 +157,9 @@ class DNS:
                 choice = UI.QueryWidget('items', 'Value')
                 if choice == '(same as parent folder)':
                     choice = ''
-                record = self.conn.records(top)[choice]
-                if 'dwChildCount' in record and record['dwChildCount'] > 0:
+                result = self.conn.records(top)
+                record = result[choice] if result and choice in result else None
+                if record and 'dwChildCount' in record and record['dwChildCount'] > 0:
                     if event['EventReason'] == 'Activated':
                         nchoice = '%s.%s' % (choice, top)
                         records = self.conn.records(nchoice)
@@ -166,7 +167,7 @@ class DNS:
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, nchoice))
                         UI.SetFocus('items')
                     self.__setup_menus(mtype='folder')
-                else:
+                elif record:
                     if event['EventReason'] == 'Activated':
                         pass
                     else:
