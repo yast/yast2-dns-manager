@@ -301,6 +301,9 @@ class DNS:
                 result = self.conn.records(top)
                 record = result[choice] if result and choice in result else None
                 nchoice = '%s.%s' % (choice, top)
+                if choice not in result:
+                    if choice.split('.')[-1] in result:
+                        record = result[choice.split('.')[-1]]
                 if record and 'dwChildCount' in record and record['dwChildCount'] > 0:
                     if event['EventReason'] == 'Activated':
                         records = self.conn.records(nchoice)
