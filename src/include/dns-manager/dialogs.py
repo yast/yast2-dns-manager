@@ -14,6 +14,124 @@ from complex import Connection
 import re
 from samba.dcerpc import dnsp
 
+class NewDialog:
+    def __init__(self, obj_type, parent):
+        self.obj = {}
+        self.obj_type = obj_type
+        self.parent = parent
+        self.dialog_seq = 0
+        self.dialog = None
+
+    def __new(self):
+        pane = self.__fetch_pane()
+        return MinSize(56, 22, HBox(HSpacing(3), VBox(
+                VSpacing(1),
+                ReplacePoint(Id('new_pane'), pane),
+                VSpacing(1),
+            ), HSpacing(3)))
+
+    def __fetch_pane(self):
+        if not self.dialog:
+            if strcmp(self.obj_type, 'host'):
+                self.dialog = self.__host_dialog()
+            else:
+                self.dialog = self.__other_dialog()
+        return self.dialog[self.dialog_seq][0]
+
+    def __other_dialog(self):
+        return [
+            [VBox(
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'Add %s' % self.obj_type.capitalize()),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            [], # known keys
+            [], # required keys
+            None, # dialog hook
+            ],
+        ]
+
+    def __host_dialog(self):
+        return [
+            [VBox(
+                Left(Label(Id('name_label'), 'Name (uses parent domain name if blank):')),
+                Left(TextEntry(Id('name'), '')),
+                Left(Label('Fully qualified domain name (FQDN):')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), self.parent)),
+                Left(Label(Id('data_label'), 'IP address:')),
+                Left(TextEntry(Id('data'), '')),
+                Left(CheckBox(Id('create_ptr'), 'Create associated pointer (PTR) record')),
+                Left(CheckBox(Id('allow_update'), 'Allow any authenticated user to update DNS records with the same owner name')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'Add %s' % self.obj_type.capitalize()),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name', 'data', 'create_ptr', 'allow_update'], # known keys
+            ['name', 'data'], # required keys
+            None, # dialog hook
+            ],
+        ]
+
+    def __warn_label(self, key):
+        label = UI.QueryWidget('%s_label' % key, 'Value')
+        if not label:
+            label = UI.QueryWidget(key, 'Label')
+        if label[-2:] != ' *':
+            if not UI.ChangeWidget('%s_label' % key, 'Value', '%s *' % label):
+                UI.ChangeWidget(key, 'Label', '%s *' % label)
+
+    def __fetch_values(self, back=False):
+        ret = True
+        known_value_keys = self.dialog[self.dialog_seq][1]
+        for key in known_value_keys:
+            value = UI.QueryWidget(key, 'Value')
+            if value or type(value) == bool:
+                self.obj[key] = value
+        required_value_keys = self.dialog[self.dialog_seq][2]
+        for key in required_value_keys:
+            if not key in self.obj or not self.obj[key]:
+                self.__warn_label(key)
+                ycpbuiltins.y2error('Missing value for %s' % key)
+                ret = False
+        return ret
+
+    def __set_values(self):
+        for key in self.obj:
+            UI.ChangeWidget(key, 'Value', self.obj[key])
+
+    def __dialog_hook(self):
+        hook = self.dialog[self.dialog_seq][3]
+        if hook:
+            hook()
+
+    def Show(self):
+        UI.SetApplicationTitle('New %s' % self.obj_type.title())
+        UI.OpenDialog(self.__new())
+        while True:
+            self.__dialog_hook()
+            ret = UI.UserInput()
+            if str(ret) == 'abort' or str(ret) == 'cancel':
+                ret = None
+                break
+            elif str(ret) == 'next':
+                if self.__fetch_values():
+                    self.dialog_seq += 1
+                    UI.ReplaceWidget('new_pane', self.__fetch_pane())
+                    self.__set_values()
+            elif str(ret) == 'back':
+                self.__fetch_values(True)
+                self.dialog_seq -= 1;
+                UI.ReplaceWidget('new_pane', self.__fetch_pane())
+                self.__set_values()
+            elif str(ret) == 'finish':
+                if self.__fetch_values():
+                    ret = self.obj
+                    break
+        UI.CloseDialog()
+        return ret
+
 class PropertiesDialog:
     def __init__(self, obj_type, name, data):
         self.obj_type = obj_type
@@ -316,6 +434,9 @@ class DNS:
                         PropertiesDialog(int(dns_type), nchoice, record).Show()
                     else:
                         self.__setup_menus(mtype='object')
+            elif ret == 'new_host':
+                top = UI.QueryWidget('dns_tree', 'Value')
+                NewDialog('host', top).Show()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
 
