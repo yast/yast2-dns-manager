@@ -14,6 +14,149 @@ from complex import Connection
 import re
 from samba.dcerpc import dnsp
 
+class PropertiesDialog:
+    def __init__(self, obj_type, name, data):
+        self.obj_type = obj_type
+        self.name = name
+        self.data = self.__fetch_record(data)
+        self.dialog_seq = 0
+        self.dialog = None
+
+    def __fetch_record(self, data):
+        for record in data['records']:
+            if self.obj_type == record['type']:
+                return record
+
+    def __new(self):
+        pane = self.__fetch_pane()
+        return MinSize(56, 22, HBox(HSpacing(3), VBox(
+                VSpacing(1),
+                ReplacePoint(Id('new_pane'), pane),
+                VSpacing(1),
+            ), HSpacing(3)))
+
+    def __fetch_pane(self):
+        if not self.dialog:
+            if self.obj_type == dnsp.DNS_TYPE_SRV:
+                self.dialog = self.__srv_dialog()
+            else:
+                self.dialog = self.__other_dialog()
+        return self.dialog[self.dialog_seq][0]
+
+    def __other_dialog(self):
+        name_keys = {k: ' '.join(re.split('([A-Z][a-z]*)', k)).strip().capitalize() for k in self.data.keys() if k not in ['flags', 'type']}
+        items = []
+        for k in name_keys.keys():
+            if type(self.data[k]) == int:
+                items.append(Left(IntField(Id(k), Opt('hstretch'), name_keys[k], 0, 99999, self.data[k])))
+            else:
+                items.append(Left(TextEntry(Id(k), Opt('hstretch'), name_keys[k], self.data[k])))
+        return [
+            [VBox(
+                *items,
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel'),
+                ))),
+            ),
+            list(name_keys.keys()), # known keys
+            list(name_keys.keys()), # required keys
+            None, # dialog hook
+            ],
+        ]
+
+    def __srv_dialog(self):
+        return [
+            [VBox(
+                HBox(
+                    HWeight(1, VBox(
+                        Left(Label('Domain:')),
+                        Left(Label('Service:')),
+                        Left(Label('Protocol:')),
+                        Left(Label(Id('priority_label'), 'Priority:')),
+                        Left(Label(Id('weight_label'), 'Weight:')),
+                        Left(Label(Id('port_label'), 'Port number:')),
+                    )),
+                    HWeight(3, VBox(
+                        Left(TextEntry(Opt('disabled', 'hstretch'), '', '.'.join(self.name.split('.')[1:]))),
+                        Left(ComboBox(Opt('disabled', 'hstretch'), '', [self.name.split('.')[0]])),
+                        Left(ComboBox(Opt('disabled', 'hstretch'), '', [])),
+                        Left(IntField(Id('priority'), Opt('hstretch'), '', 0, 99999, self.data['priority'])),
+                        Left(IntField(Id('weight'), Opt('hstretch'), '', 0, 99999, self.data['weight'])),
+                        Left(IntField(Id('port'), Opt('hstretch'), '', 1, 65535, self.data['port'])),
+                    )),
+                ),
+                Left(Label(Id('nameTarget_label'), 'Host offering this service:')),
+                Left(TextEntry(Id('nameTarget'), Opt('hstretch'), '', self.data['nameTarget'])),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel'),
+                ))),
+            ),
+            ['nameTarget', 'priority', 'weight', 'port'], # known keys
+            ['nameTarget', 'priority', 'weight', 'port'], # required keys
+            None, # dialog hook
+            ],
+        ]
+
+    def __warn_label(self, key):
+        label = UI.QueryWidget('%s_label' % key, 'Value')
+        if not label:
+            label = UI.QueryWidget(key, 'Label')
+        if label[-2:] != ' *':
+            if not UI.ChangeWidget('%s_label' % key, 'Value', '%s *' % label):
+                UI.ChangeWidget(key, 'Label', '%s *' % label)
+
+    def __fetch_values(self, back=False):
+        ret = True
+        known_value_keys = self.dialog[self.dialog_seq][1]
+        for key in known_value_keys:
+            value = UI.QueryWidget(key, 'Value')
+            if value or type(value) == bool:
+                self.obj[key] = value
+        required_value_keys = self.dialog[self.dialog_seq][2]
+        for key in required_value_keys:
+            if not key in self.obj or not self.obj[key]:
+                self.__warn_label(key)
+                ycpbuiltins.y2error('Missing value for %s' % key)
+                ret = False
+        return ret
+
+    def __set_values(self):
+        for key in self.obj:
+            UI.ChangeWidget(key, 'Value', self.obj[key])
+
+    def __dialog_hook(self):
+        hook = self.dialog[self.dialog_seq][3]
+        if hook:
+            hook()
+
+    def Show(self):
+        UI.SetApplicationTitle('%s Properties' % self.name.split('.')[0])
+        UI.OpenDialog(self.__new())
+        while True:
+            self.__dialog_hook()
+            ret = UI.UserInput()
+            if str(ret) == 'abort' or str(ret) == 'cancel':
+                ret = None
+                break
+            elif str(ret) == 'next':
+                if self.__fetch_values():
+                    self.dialog_seq += 1
+                    UI.ReplaceWidget('new_pane', self.__fetch_pane())
+                    self.__set_values()
+            elif str(ret) == 'back':
+                self.__fetch_values(True)
+                self.dialog_seq -= 1;
+                UI.ReplaceWidget('new_pane', self.__fetch_pane())
+                self.__set_values()
+            elif str(ret) == 'finish':
+                if self.__fetch_values():
+                    ret = self.obj
+                    break
+        UI.CloseDialog()
+        return ret
+
 class ConnectionDialog:
     def __init__(self):
         self.lp = LoadParm()
@@ -154,14 +297,12 @@ class DNS:
                     self.__setup_menus()
             elif ret == 'items':
                 top = UI.QueryWidget('dns_tree', 'Value')
-                choice = UI.QueryWidget('items', 'Value')
-                if choice == '(same as parent folder)':
-                    choice = ''
+                choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
                 result = self.conn.records(top)
                 record = result[choice] if result and choice in result else None
+                nchoice = '%s.%s' % (choice, top)
                 if record and 'dwChildCount' in record and record['dwChildCount'] > 0:
                     if event['EventReason'] == 'Activated':
-                        nchoice = '%s.%s' % (choice, top)
                         records = self.conn.records(nchoice)
                         self.__tree_select(nchoice)
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, nchoice))
@@ -169,7 +310,7 @@ class DNS:
                     self.__setup_menus(mtype='folder')
                 elif record:
                     if event['EventReason'] == 'Activated':
-                        pass
+                        PropertiesDialog(int(dns_type), nchoice, record).Show()
                     else:
                         self.__setup_menus(mtype='object')
             UI.SetApplicationTitle('DNS Manager')
@@ -263,9 +404,9 @@ class DNS:
 
     def __rightpane_zones(self, zone_type):
         if zone_type == 'forward':
-            items = [Item(Id(zone), zone, '', '') for zone in self.conn.forward_zones()]
+            items = [Item(Id('%s:' % zone), zone, '', '') for zone in self.conn.forward_zones()]
         elif zone_type == 'reverse':
-            items = [Item(Id(zone), zone, '', '') for zone in self.conn.reverse_zones()]
+            items = [Item(Id('%s:' % zone), zone, '', '') for zone in self.conn.reverse_zones()]
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Status'), items)
 
     def __rightpane(self, records, parent):
@@ -276,9 +417,9 @@ class DNS:
         items = []
         for name in records.keys():
             if len(records[name]['records']) > 0:
-                items.extend([Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(r['type'])), r['data'] if 'data' in r else '', '') for r in records[name]['records']])
+                items.extend([Item(Id('%s%s:%d' % (prepend, name, r['type'])), '%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), r['data'] if 'data' in r else '', '') for r in records[name]['records']])
             elif name:
-                items.append(Item('%s%s' % (prepend, name), '', '', ''))
+                items.append(Item(Id('%s%s:' % (prepend, name)), '%s%s' % (prepend, name), '', '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
     def __tree_children(self, records, parent, expand=None):
