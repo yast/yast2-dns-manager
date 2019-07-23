@@ -277,8 +277,8 @@ class DNS:
         for name in records.keys():
             if len(records[name]['records']) > 0:
                 items.extend([Item('%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(int(r['type'])), r['data'] if 'data' in r else '', '') for r in records[name]['records']])
-            else:
-                items.append(Item('%s%s' % (prepend, name) if name else '(same as parent folder)', '', '', ''))
+            elif name:
+                items.append(Item('%s%s' % (prepend, name), '', '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
     def __tree_children(self, records, parent, expand=None):
