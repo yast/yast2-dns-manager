@@ -13,6 +13,7 @@ from samba import NTSTATUSError
 from complex import Connection
 import re
 from samba.dcerpc import dnsp
+from ipaddress import ip_address, IPv4Address, IPv6Address
 
 class NewDialog:
     def __init__(self, obj_type, parent):
@@ -439,8 +440,16 @@ class DNS:
                         self.__setup_menus(mtype='object')
             elif ret == 'new_host':
                 host = NewDialog('host', current_parent).Show()
-                msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
-                self.__refresh_rightpange(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
+                try:
+                    ipvers = ip_address(host['data'])
+                    if type(ipvers) == IPv4Address:
+                        msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
+                        self.__refresh_rightpange(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
+                    elif type(ipvers) == IPv6Address:
+                        msg = self.conn.add_record(current_parent, host['name'], 'AAAA', host['data'])
+                        self.__refresh_rightpange(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
+                except ValueError as e:
+                    msg = str(e)
                 self.__message(msg, buttons=['ok'])
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
