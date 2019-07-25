@@ -381,6 +381,8 @@ class DNS:
         Wizard.SetContentsButtons('', self.__dns_page(), '', '', '')
         DeleteButtonBox()
         UI.SetFocus('dns_tree')
+        current_selection = None
+        current_parent = None
         while True:
             event = UI.WaitForEvent()
             if 'WidgetID' in event:
@@ -396,6 +398,8 @@ class DNS:
                 UI.ReplaceWidget('dns_tree_repl', self.__dns_tree())
             elif ret == 'dns_tree':
                 choice = UI.QueryWidget('dns_tree', 'Value')
+                current_selection = choice
+                current_parent = choice
                 if choice not in ['dns_edit', 'server', 'forward', 'reverse']:
                     records = self.conn.records(choice)
                     if records:
@@ -419,15 +423,14 @@ class DNS:
                 result = self.conn.records(top)
                 record = result[choice] if result and choice in result else None
                 nchoice = '%s.%s' % (choice, top)
+                current_selection = nchoice
                 if choice not in result:
                     if choice.split('.')[-1] in result:
                         record = result[choice.split('.')[-1]]
                 if record and 'dwChildCount' in record and record['dwChildCount'] > 0:
+                    current_parent = nchoice
                     if event['EventReason'] == 'Activated':
-                        records = self.conn.records(nchoice)
-                        self.__tree_select(nchoice)
-                        UI.ReplaceWidget('rightPane', self.__rightpane(records, nchoice))
-                        UI.SetFocus('items')
+                        self.__refresh_rightpange(nchoice)
                     self.__setup_menus(mtype='folder')
                 elif record:
                     if event['EventReason'] == 'Activated':
@@ -435,10 +438,45 @@ class DNS:
                     else:
                         self.__setup_menus(mtype='object')
             elif ret == 'new_host':
-                top = UI.QueryWidget('dns_tree', 'Value')
-                NewDialog('host', top).Show()
+                host = NewDialog('host', current_parent).Show()
+                msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
+                self.__refresh_rightpange(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
+                self.__message(msg, buttons=['ok'])
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
+
+    def __refresh_rightpange(self, top=None, item=None, dns_type=None):
+        if not top:
+            top = UI.QueryWidget('dns_tree', 'Value')
+        else:
+            self.__tree_select(top)
+        records = self.conn.records(top)
+        UI.ReplaceWidget('rightPane', self.__rightpane(records, top))
+        UI.SetFocus('items')
+        if item and dns_type:
+            UI.ChangeWidget('items', 'CurrentItem', Symbol('%s:%d' % (item, dns_type)))
+
+    def __message(self, msg, title=None, warn=False, buttons=['yes', 'no']):
+        ans = False
+        if title:
+            UI.SetApplicationTitle(title)
+        opts = tuple('warncolor') if warn else tuple()
+        btns = tuple([PushButton(Id(btn), btn.capitalize()) for btn in buttons])
+        UI.OpenDialog(Opt(*opts), HBox(HSpacing(1), VBox(
+            VSpacing(.3),
+            Label(msg),
+            Right(HBox(*btns)),
+            VSpacing(.3),
+        ), HSpacing(1)))
+        ret = UI.UserInput()
+        if str(ret) == 'yes':
+            ans = True
+        elif str(ret) == 'no' or str(ret) == 'abort' or str(ret) == 'cancel':
+            ans = False
+        else:
+            ans = None
+        UI.CloseDialog()
+        return ans
 
     def __tree_select(self, choice):
         UI.ReplaceWidget('dns_tree_repl', self.__dns_tree(choice))

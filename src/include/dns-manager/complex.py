@@ -32,3 +32,11 @@ class Connection:
                 return {}
             zone = max(matching_zones, key=len)
             return SambaToolDnsAPI.query(self.server, zone, selection, 'ALL', self.creds.get_username(), self.creds.get_password())
+
+    def add_record(self, parent, name, rtype, data):
+        matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if parent[-len(zone):] == zone]
+        if len(matching_zones) == 0:
+            return 'Zone does not exist; record could not be added.'
+        zone = max(matching_zones, key=len)
+        fqdn = '%s.%s' % (name, parent)
+        return SambaToolDnsAPI.add_record(self.server, zone, fqdn, rtype, data, self.creds.get_username(), self.creds.get_password())

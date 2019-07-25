@@ -7,6 +7,7 @@ from samba.netcmd import dns
 from samba.netcmd import CommandError
 import re
 from samba.dcerpc import dnsp
+from samba import NTSTATUSError
 
 @Declare('map', 'string', 'string', 'string')
 def zonelist(server, username, password):
@@ -96,3 +97,26 @@ def query(server, zone, name, rtype, username, password):
         if records[dnsNodeName]['dwChildCount'] > 0:
             records[dnsNodeName]['children'] = query(server, zone, '%s.%s' % (dnsNodeName, name if name != '@' else '%s.' % zone), rtype, username, password)
     return records
+
+@Declare('string', 'string', 'string', 'string', 'string', 'string', 'string', 'string')
+def add_record(server, zone, name, rtype, data, username, password):
+    parser = OptionParser()
+    sambaopts = SambaOptions(parser)
+    credopts = CredentialsOptions(parser)
+    credopts.creds.parse_string(username)
+    credopts.creds.set_password(password)
+    credopts.ask_for_password = False
+    credopts.machine_pass = False
+    lp = sambaopts.get_loadparm()
+    lp.set('realm', server)
+    lp.set('debug level', '0')
+    output = StringIO()
+    cmd = dns.cmd_add_record()
+    cmd.outf = output
+    try:
+        cmd.run(server, zone, name, rtype, data, sambaopts, credopts)
+    except CommandError as e:
+        return str(e)
+    except NTSTATUSError as e:
+        return e.args[1]
+    return output.getvalue().strip()
