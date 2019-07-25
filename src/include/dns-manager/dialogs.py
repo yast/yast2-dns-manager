@@ -356,19 +356,23 @@ class DNS:
     def __setup_menus(self, mtype=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
                  {'title': 'Exit', 'id': 'abort', 'type': 'MenuEntry', 'parent': 'file'}]
-        if mtype and mtype in ['top', 'zones', 'zone', 'folder', 'object']:
+        if mtype and mtype in ['top', 'zones', 'fzone', 'rzone', 'folder', 'object']:
             menus.append({'title': 'Action', 'id': 'action', 'type': 'Menu'})
         if mtype and mtype == 'top':
             menus.append({'title': 'Connect to DNS Server...', 'id': 'connect', 'type': 'MenuEntry', 'parent': 'action'})
         elif mtype and mtype == 'zones':
             menus.append({'title': 'New Zone...', 'id': 'new_zone', 'type': 'MenuEntry', 'parent': 'action'})
-        elif mtype and mtype == 'zone':
+        elif mtype and mtype in ['fzone', 'rzone']:
             menus.append({'title': 'Reload', 'id': 'reload', 'type': 'MenuEntry', 'parent': 'action'})
-        if mtype and mtype in ['zone', 'folder']:
+        if mtype and mtype in ['fzone', 'folder']:
             menus.append({'title': 'New Host (A or AAAA)...', 'id': 'new_host', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Alias (CNAME)...', 'id': 'new_alias', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Mail Exchanger (MX)...', 'id': 'new_mx', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Domain...', 'id': 'new_domain', 'type': 'MenuEntry', 'parent': 'action'})
+        if mtype and mtype in ['rzone']:
+            menus.append({'title': 'New Pointer (PTR)...', 'id': 'new_pointer', 'type': 'MenuEntry', 'parent': 'action'})
+            menus.append({'title': 'New Alias (CNAME)...', 'id': 'new_alias', 'type': 'MenuEntry', 'parent': 'action'})
+        if mtype and mtype in ['fzone', 'rzone', 'folder']:
             menus.append({'title': 'New Delegation...', 'id': 'new_delegation', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'Other New Records...', 'id': 'other_new_records', 'type': 'MenuEntry', 'parent': 'action'})
         if mtype and mtype == 'object':
@@ -404,8 +408,10 @@ class DNS:
                     records = self.conn.records(choice)
                     if records:
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, choice))
-                    if choice in self.conn.forward_zones() or choice in self.conn.reverse_zones():
-                        self.__setup_menus(mtype='zone')
+                    if choice in self.conn.forward_zones():
+                        self.__setup_menus(mtype='fzone')
+                    if choice in self.conn.reverse_zones():
+                        self.__setup_menus(mtype='rzone')
                     else:
                         self.__setup_menus(mtype='folder')
                 elif choice in ['forward', 'reverse']:
