@@ -438,7 +438,7 @@ class DNS:
                 if record and 'dwChildCount' in record and record['dwChildCount'] > 0:
                     current_parent = nchoice
                     if event['EventReason'] == 'Activated':
-                        self.__refresh_rightpange(nchoice)
+                        self.__refresh(nchoice)
                     self.__setup_menus(mtype='folder')
                 elif record:
                     if event['EventReason'] == 'Activated':
@@ -455,10 +455,10 @@ class DNS:
                     ipvers = ip_address(host['data'])
                     if type(ipvers) == IPv4Address:
                         msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
-                        self.__refresh_rightpange(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
+                        self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
                     elif type(ipvers) == IPv6Address:
                         msg = self.conn.add_record(current_parent, host['name'], 'AAAA', host['data'])
-                        self.__refresh_rightpange(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
+                        self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
                 except ValueError as e:
                     msg = str(e)
                 self.__message(msg, buttons=['ok'])
@@ -486,16 +486,15 @@ class DNS:
                         dns_type = type_name
                     msg = self.conn.delete_record(nchoice, dns_type, data)
                     self.__message(msg, buttons=['ok'])
-                    self.__refresh_rightpange()
+                    self.__refresh()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
 
-    def __refresh_rightpange(self, top=None, item=None, dns_type=None):
+    def __refresh(self, top=None, item=None, dns_type=None):
         if not top:
             top = UI.QueryWidget('dns_tree', 'Value')
-        else:
-            self.__tree_select(top)
         records = self.conn.records(top)
+        self.__tree_select(top)
         UI.ReplaceWidget('rightPane', self.__rightpane(records, top))
         UI.SetFocus('items')
         if item and dns_type:
