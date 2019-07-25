@@ -387,6 +387,7 @@ class DNS:
         UI.SetFocus('dns_tree')
         current_selection = None
         current_parent = None
+        current_dns_type = None
         while True:
             event = UI.WaitForEvent()
             if 'WidgetID' in event:
@@ -430,6 +431,7 @@ class DNS:
                 record = result[choice] if result and choice in result else None
                 nchoice = '%s.%s' % (choice, top)
                 current_selection = nchoice
+                current_dns_type = dns_type
                 if choice not in result:
                     if choice.split('.')[-1] in result:
                         record = result[choice.split('.')[-1]]
@@ -441,8 +443,12 @@ class DNS:
                 elif record:
                     if event['EventReason'] == 'Activated':
                         PropertiesDialog(int(dns_type), nchoice, record).Show()
-                    else:
-                        self.__setup_menus(mtype='object')
+                    self.__setup_menus(mtype='object')
+            elif ret == 'properties':
+                top = UI.QueryWidget('dns_tree', 'Value')
+                record = self.conn.records(current_selection)['']
+                if record:
+                    PropertiesDialog(int(current_dns_type), current_selection, record).Show()
             elif ret == 'new_host':
                 host = NewDialog('host', current_parent).Show()
                 try:
