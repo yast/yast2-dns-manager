@@ -35,6 +35,8 @@ class NewDialog:
         if not self.dialog:
             if strcmp(self.obj_type, 'host'):
                 self.dialog = self.__host_dialog()
+            elif strcmp(self.obj_type, 'cname'):
+                self.dialog = self.__cname_dialog()
             else:
                 self.dialog = self.__other_dialog()
         return self.dialog[self.dialog_seq][0]
@@ -49,6 +51,27 @@ class NewDialog:
             ),
             [], # known keys
             [], # required keys
+            None, # dialog hook
+            ],
+        ]
+
+    def __cname_dialog(self):
+        return [
+            [VBox(
+                Left(Label(Id('name_label'), 'Alias name (uses parent domain if left blank):')),
+                Left(TextEntry(Id('name'), '')),
+                Left(Label('Fully qualified domain name (FQDN):')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), self.parent)),
+                Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) for target host:')),
+                Left(TextEntry(Id('data'), '')),
+                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same name. This setting applies only to DNS records for a new name.')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name', 'data', 'allow_update'], # known keys
+            ['name', 'data'], # required keys
             None, # dialog hook
             ],
         ]
@@ -461,6 +484,11 @@ class DNS:
                         self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
                 except ValueError as e:
                     msg = str(e)
+                self.__message(msg, buttons=['ok'])
+            elif ret == 'new_alias':
+                cname = NewDialog('cname', current_parent).Show()
+                msg = self.conn.add_record(current_parent, cname['name'], 'CNAME', cname['data'])
+                self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
                 self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 top = UI.QueryWidget('dns_tree', 'Value')
