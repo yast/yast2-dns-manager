@@ -120,3 +120,26 @@ def add_record(server, zone, name, rtype, data, username, password):
     except NTSTATUSError as e:
         return e.args[1]
     return output.getvalue().strip()
+
+@Declare('string', 'string', 'string', 'string', 'string', 'string', 'string', 'string')
+def delete_record(server, zone, name, rtype, data, username, password):
+    parser = OptionParser()
+    sambaopts = SambaOptions(parser)
+    credopts = CredentialsOptions(parser)
+    credopts.creds.parse_string(username)
+    credopts.creds.set_password(password)
+    credopts.ask_for_password = False
+    credopts.machine_pass = False
+    lp = sambaopts.get_loadparm()
+    lp.set('realm', server)
+    lp.set('debug level', '0')
+    output = StringIO()
+    cmd = dns.cmd_delete_record()
+    cmd.outf = output
+    try:
+        cmd.run(server, zone, name, rtype, data, sambaopts, credopts)
+    except CommandError as e:
+        return str(e)
+    except NTSTATUSError as e:
+        return e.args[1]
+    return output.getvalue().strip()

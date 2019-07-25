@@ -40,3 +40,10 @@ class Connection:
         zone = max(matching_zones, key=len)
         fqdn = '%s.%s' % (name, parent)
         return SambaToolDnsAPI.add_record(self.server, zone, fqdn, rtype, data, self.creds.get_username(), self.creds.get_password())
+
+    def delete_record(self, name, rtype, data):
+        matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if name[-len(zone):] == zone]
+        if len(matching_zones) == 0:
+            return 'Zone does not exist; record could not be deleted.'
+        zone = max(matching_zones, key=len)
+        return SambaToolDnsAPI.delete_record(self.server, zone, name, rtype, data, self.creds.get_username(), self.creds.get_password())

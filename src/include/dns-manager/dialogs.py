@@ -371,9 +371,8 @@ class DNS:
             menus.append({'title': 'New Domain...', 'id': 'new_domain', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'New Delegation...', 'id': 'new_delegation', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'Other New Records...', 'id': 'other_new_records', 'type': 'MenuEntry', 'parent': 'action'})
-        if mtype and mtype in ['folder', 'object']:
-            menus.append({'title': 'Delete', 'id': 'delete', 'type': 'MenuEntry', 'parent': 'action'})
         if mtype and mtype == 'object':
+            menus.append({'title': 'Delete', 'id': 'delete', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'Properties', 'id': 'properties', 'type': 'MenuEntry', 'parent': 'action'})
         CreateMenu(menus)
 
@@ -451,6 +450,31 @@ class DNS:
                 except ValueError as e:
                     msg = str(e)
                 self.__message(msg, buttons=['ok'])
+            elif ret == 'delete':
+                top = UI.QueryWidget('dns_tree', 'Value')
+                choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
+                result = self.conn.records(top)
+                record = result[choice] if result and choice in result else None
+                nchoice = '%s.%s' % (choice, top)
+                if choice not in result:
+                    if choice.split('.')[-1] in result:
+                        record = result[choice.split('.')[-1]]
+                ycpbuiltins.y2error(str(record))
+                data = None
+                for rec in record['records']:
+                    if rec['type'] == int(dns_type):
+                        data = rec['data']
+                        break
+                if data and self.__message('Do you want to delete the record %s from the server?' % choice, title='DNS', warn=True):
+                    type_name = self.__dns_type_name(int(dns_type))
+                    m = re.match('[\w\s]*\s*\((\w+)\)', type_name)
+                    if m:
+                        dns_type = m.group(1)
+                    else:
+                        dns_type = type_name
+                    msg = self.conn.delete_record(nchoice, dns_type, data)
+                    self.__message(msg, buttons=['ok'])
+                    self.__refresh_rightpange()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
 
