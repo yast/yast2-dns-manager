@@ -61,6 +61,12 @@ class NewDialog:
         ]
 
     def __ptr_dialog(self):
+        def fqdn_hook():
+            name = UI.QueryWidget('name', 'Value')
+            if re.match('[\d+\.]+in\-addr\.arpa', self.parent):
+                UI.ChangeWidget('fqdn', 'Value', '%s.%s' % ('.'.join(reversed(name.split('.'))), self.parent))
+            elif re.match('[\w+\.]+ip6\.arpa', self.parent):
+                UI.ChangeWidget('fqdn', 'Value', '%s.%s' % ('.'.join(reversed(''.join(name.split(':')))), self.parent))
         name = ''
         m = re.match('([\d+\.]+)(in\-addr)\.arpa', self.parent)
         if not m:
@@ -76,7 +82,7 @@ class NewDialog:
                 Left(Label(Id('name_label'), 'Host IP Address:')),
                 HBox(
                     HWeight(1, Left(TextEntry(Opt('disabled'), '', name))),
-                    HWeight(2, Left(TextEntry(Id('name'), ''))),
+                    HWeight(2, Left(TextEntry(Id('name'), Opt('notify', 'immediate'), ''))),
                 ),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
@@ -90,7 +96,7 @@ class NewDialog:
             ),
             ['name', 'data', 'allow_update'], # known keys
             ['name', 'data'], # required keys
-            None, # dialog hook
+            fqdn_hook, # dialog hook
             ],
         ]
 
