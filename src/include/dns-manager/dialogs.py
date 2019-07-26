@@ -306,19 +306,23 @@ class ConnectionDialog:
         self.creds.guess(self.lp)
         self.server = None
         self.conn = None
+        self.cldap_ret = None
+
+    def __cldap(self, address):
+        if not self.cldap_ret:
+            net = Net(Credentials())
+            try:
+                self.cldap_ret = net.finddc(address=address, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
+            except NTSTATUSError:
+                pass
 
     def __fetch_server(self, address):
-        net = Net(Credentials())
-        try:
-            cldap_ret = net.finddc(address=address, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
-        except NTSTATUSError:
-            return None
-        return cldap_ret.pdc_dns_name if cldap_ret else None
+        self.__cldap(address)
+        return self.cldap_ret.pdc_dns_name if self.cldap_ret else None
 
     def __fetch_domain(self):
-        net = Net(Credentials())
-        cldap_ret = net.finddc(address=self.server, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
-        return cldap_ret.dns_domain if cldap_ret else None
+        self.__cldap(self.server)
+        return self.cldap_ret.dns_domain if self.cldap_ret else None
 
     def __new(self):
         return MinSize(56, 8, HBox(HSpacing(3), VBox(
