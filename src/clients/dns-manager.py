@@ -6,6 +6,7 @@ from wizards import DNSSequence
 if __name__ == "__main__":
     try:
         DNSSequence()
-    except:
+    except Exception as e:
+        ycpbuiltins.y2error(str(e))
         ycpbuiltins.y2error(traceback.format_exc())
 
