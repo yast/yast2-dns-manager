@@ -711,9 +711,15 @@ class DNS:
 
     def __rightpane(self, records, parent):
         prepend = ''
-        m = re.match('(\d+\.\d+\.\d+)\.in\-addr\.arpa', parent)
+        m = re.match('([\d+\.]+)(in\-addr)\.arpa', parent)
+        if not m:
+            m = re.match('([\w+\.]+)(ip6)\.arpa', parent)
         if m:
-            prepend = '.'.join(reversed(m.group(1).split('.'))) + '.'
+            if m.group(2) == 'in-addr':
+                prepend = '.'.join(reversed(m.group(1)[:-1].split('.'))) + '.'
+            else: # ipv6
+                rev = ''.join(reversed(m.group(1)[:-1].split('.')))
+                prepend = ':'.join([rev[x-4:x] for x in range(4, len(rev)+4, 4)]) + ':'
         items = []
         for name in records.keys():
             if len(records[name]['records']) > 0:
