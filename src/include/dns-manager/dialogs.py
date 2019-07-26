@@ -20,6 +20,9 @@ class NewDialog:
         self.obj = {}
         self.obj_type = obj_type
         self.parent = parent
+        self.title = None
+        if self.obj_type in ['cname', 'ptr']:
+            self.title = 'Resource Record'
         self.dialog_seq = 0
         self.dialog = None
 
@@ -37,6 +40,8 @@ class NewDialog:
                 self.dialog = self.__host_dialog()
             elif strcmp(self.obj_type, 'cname'):
                 self.dialog = self.__cname_dialog()
+            elif strcmp(self.obj_type, 'ptr'):
+                self.dialog = self.__ptr_dialog()
             else:
                 self.dialog = self.__other_dialog()
         return self.dialog[self.dialog_seq][0]
@@ -51,6 +56,40 @@ class NewDialog:
             ),
             [], # known keys
             [], # required keys
+            None, # dialog hook
+            ],
+        ]
+
+    def __ptr_dialog(self):
+        name = ''
+        m = re.match('([\d+\.]+)(in\-addr)\.arpa', self.parent)
+        if not m:
+            m = re.match('([\w+\.]+)(ip6)\.arpa', self.parent)
+        if m:
+            if m.group(2) == 'in-addr':
+                name = '%s.' % '.'.join(reversed(m.group(1)[:-1].split('.')))
+            else: # ip6
+                rev = ''.join(reversed(m.group(1)[:-1].split('.')))
+                name = '%s:' % ':'.join([rev[x-4:x] for x in range(4, len(rev)+4, 4)])
+        return [
+            [VBox(
+                Left(Label(Id('name_label'), 'Host IP Address:')),
+                HBox(
+                    HWeight(1, Left(TextEntry(Opt('disabled'), '', name))),
+                    HWeight(2, Left(TextEntry(Id('name'), ''))),
+                ),
+                Left(Label('Fully qualified domain name (FQDN):')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(Label(Id('data_label'), 'Host name:')),
+                Left(TextEntry(Id('data'), '')),
+                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name', 'data', 'allow_update'], # known keys
+            ['name', 'data'], # required keys
             None, # dialog hook
             ],
         ]
@@ -131,7 +170,7 @@ class NewDialog:
             hook()
 
     def Show(self):
-        UI.SetApplicationTitle('New %s' % self.obj_type.title())
+        UI.SetApplicationTitle('New %s' % (self.title if self.title else self.obj_type.title()))
         UI.OpenDialog(self.__new())
         while True:
             self.__dialog_hook()
@@ -513,6 +552,12 @@ class DNS:
                 if cname:
                     msg = self.conn.add_record(current_parent, cname['name'], 'CNAME', cname['data'])
                     self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
+                    self.__message(msg, buttons=['ok'])
+            elif ret == 'new_pointer':
+                ptr = NewDialog('ptr', current_parent).Show()
+                if ptr:
+                    msg = self.conn.add_record(current_parent, ptr['name'], 'PTR', ptr['data'])
+                    self.__refresh(item=ptr['name'], dns_type=dnsp.DNS_TYPE_PTR)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 top = UI.QueryWidget('dns_tree', 'Value')
