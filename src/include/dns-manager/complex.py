@@ -23,27 +23,28 @@ class Connection:
     def reverse_zones(self):
         return self._reverse
 
+    def match_zone(self, selection):
+        matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if selection[-len(zone):] == zone]
+        return max(matching_zones, key=len)
+
     def records(self, selection):
         if selection in self._forward or selection in self._reverse:
             return SambaToolDnsAPI.query(self.server, selection, '@', 'ALL', self.creds.get_username(), self.creds.get_password())
         else:
-            matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if selection[-len(zone):] == zone]
-            if len(matching_zones) == 0:
+            zone = self.match_zone(selection)
+            if not zone:
                 return {}
-            zone = max(matching_zones, key=len)
             return SambaToolDnsAPI.query(self.server, zone, selection, 'ALL', self.creds.get_username(), self.creds.get_password())
 
     def add_record(self, parent, name, rtype, data):
-        matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if parent[-len(zone):] == zone]
-        if len(matching_zones) == 0:
+        zone = self.match_zone(parent)
+        if not zone:
             return 'Zone does not exist; record could not be added.'
-        zone = max(matching_zones, key=len)
         fqdn = '%s.%s' % (name, parent)
         return SambaToolDnsAPI.add_record(self.server, zone, fqdn, rtype, data, self.creds.get_username(), self.creds.get_password())
 
     def delete_record(self, name, rtype, data):
-        matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if name[-len(zone):] == zone]
-        if len(matching_zones) == 0:
+        zone = self.match_zone(name)
+        if not zone:
             return 'Zone does not exist; record could not be deleted.'
-        zone = max(matching_zones, key=len)
         return SambaToolDnsAPI.delete_record(self.server, zone, name, rtype, data, self.creds.get_username(), self.creds.get_password())
