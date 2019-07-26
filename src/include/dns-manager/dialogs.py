@@ -21,7 +21,7 @@ class NewDialog:
         self.obj_type = obj_type
         self.parent = parent
         self.title = None
-        if self.obj_type in ['cname', 'ptr']:
+        if self.obj_type in ['cname', 'ptr', 'mx']:
             self.title = 'Resource Record'
         self.dialog_seq = 0
         self.dialog = None
@@ -42,6 +42,8 @@ class NewDialog:
                 self.dialog = self.__cname_dialog()
             elif strcmp(self.obj_type, 'ptr'):
                 self.dialog = self.__ptr_dialog()
+            elif strcmp(self.obj_type, 'mx'):
+                self.dialog = self.__mx_dialog()
             else:
                 self.dialog = self.__other_dialog()
         return self.dialog[self.dialog_seq][0]
@@ -57,6 +59,32 @@ class NewDialog:
             [], # known keys
             [], # required keys
             None, # dialog hook
+            ],
+        ]
+
+    def __mx_dialog(self):
+        def fqdn_hook():
+            name = UI.QueryWidget('name', 'Value')
+            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+        return [
+            [VBox(
+                Left(Label(Id('name_label'), 'Host or child domain:')),
+                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
+                Left(Label('By default, DNS uses the parent domain name when creating a Mail\nExchange record. You can specify a host or child name, but in most\ndeployments, the above field is left blank.')),
+                Left(Label('Fully qualified domain name (FQDN):')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) of mail server:')),
+                Left(TextEntry(Id('data'), '')),
+                Left(Label(Id('priority_label'), 'Mail server priority:')),
+                Left(TextEntry(Id('priority'), '', '10')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name', 'data', 'priority'], # known keys
+            ['name', 'data', 'priority'], # required keys
+            fqdn_hook, # dialog hook
             ],
         ]
 
@@ -570,6 +598,12 @@ class DNS:
                 if ptr:
                     msg = self.conn.add_record(current_parent, ptr['name'], 'PTR', ptr['data'])
                     self.__refresh(item=ptr['name'], dns_type=dnsp.DNS_TYPE_PTR)
+                    self.__message(msg, buttons=['ok'])
+            elif ret == 'new_mx':
+                mx = NewDialog('mx', current_parent).Show()
+                if mx:
+                    msg = self.conn.add_record(current_parent, mx['name'], 'MX', '%s %s' % (mx['data'], mx['priority']))
+                    self.__refresh(item=mx['name'], dns_type=dnsp.DNS_TYPE_MX)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 top = UI.QueryWidget('dns_tree', 'Value')
