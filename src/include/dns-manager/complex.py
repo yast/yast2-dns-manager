@@ -25,7 +25,7 @@ class Connection:
 
     def match_zone(self, selection):
         matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if selection[-len(zone):] == zone]
-        return max(matching_zones, key=len)
+        return max(matching_zones, key=len) if len(matching_zones) > 0 else None
 
     def records(self, selection):
         if selection in self._forward or selection in self._reverse:

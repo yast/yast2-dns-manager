@@ -484,18 +484,24 @@ class DNS:
                         if host['create_ptr']:
                             rev = '%s.in-addr.arpa' % '.'.join(list(reversed(host['data'].split('.'))))
                             parent = self.conn.match_zone(rev)
-                            name = '%s.%s' % (host['name'], current_parent)
-                            data = rev.split(parent)[0][:-1]
-                            msg2 = self.conn.add_record(parent, data, 'PTR', name)
+                            if not parent:
+                                msg2 = 'Zone does not exist; record could not be added.'
+                            else:
+                                name = '%s.%s' % (host['name'], current_parent)
+                                data = rev.split(parent)[0][:-1]
+                                msg2 = self.conn.add_record(parent, data, 'PTR', name)
                     elif type(ipvers) == IPv6Address:
                         msg = self.conn.add_record(current_parent, host['name'], 'AAAA', host['data'])
                         self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
                         if host['create_ptr']:
                             rev = '%s.ip6.arpa' % '.'.join(list(reversed(list(host['data'].replace(':', '')))))
                             parent = self.conn.match_zone(rev)
-                            name = '%s.%s' % (host['name'], current_parent)
-                            data = rev.split(parent)[0][:-1]
-                            msg2 = self.conn.add_record(parent, data, 'PTR', name)
+                            if not parent:
+                                msg2 = 'Zone does not exist; record could not be added.'
+                            else:
+                                name = '%s.%s' % (host['name'], current_parent)
+                                data = rev.split(parent)[0][:-1]
+                                msg2 = self.conn.add_record(parent, data, 'PTR', name)
                 except ValueError as e:
                     msg = str(e)
                 if msg2 and msg2 != 'Record added successfully':
