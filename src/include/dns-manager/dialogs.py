@@ -536,7 +536,7 @@ class DNS:
         ans = False
         if title:
             UI.SetApplicationTitle(title)
-        opts = tuple('warncolor') if warn else tuple()
+        opts = tuple(['warncolor']) if warn else tuple()
         btns = tuple([PushButton(Id(btn), btn.capitalize()) for btn in buttons])
         UI.OpenDialog(Opt(*opts), HBox(HSpacing(1), VBox(
             VSpacing(.3),
