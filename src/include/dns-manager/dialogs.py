@@ -475,43 +475,45 @@ class DNS:
                     PropertiesDialog(int(current_dns_type), current_selection, record).Show()
             elif ret == 'new_host':
                 host = NewDialog('host', current_parent).Show()
-                msg2 = None
-                try:
-                    ipvers = ip_address(host['data'])
-                    if type(ipvers) == IPv4Address:
-                        msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
-                        self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
-                        if host['create_ptr']:
-                            rev = '%s.in-addr.arpa' % '.'.join(list(reversed(host['data'].split('.'))))
-                            parent = self.conn.match_zone(rev)
-                            if not parent:
-                                msg2 = 'Zone does not exist; record could not be added.'
-                            else:
-                                name = '%s.%s' % (host['name'], current_parent)
-                                data = rev.split(parent)[0][:-1]
-                                msg2 = self.conn.add_record(parent, data, 'PTR', name)
-                    elif type(ipvers) == IPv6Address:
-                        msg = self.conn.add_record(current_parent, host['name'], 'AAAA', host['data'])
-                        self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
-                        if host['create_ptr']:
-                            rev = '%s.ip6.arpa' % '.'.join(list(reversed(list(host['data'].replace(':', '')))))
-                            parent = self.conn.match_zone(rev)
-                            if not parent:
-                                msg2 = 'Zone does not exist; record could not be added.'
-                            else:
-                                name = '%s.%s' % (host['name'], current_parent)
-                                data = rev.split(parent)[0][:-1]
-                                msg2 = self.conn.add_record(parent, data, 'PTR', name)
-                except ValueError as e:
-                    msg = str(e)
-                if msg2 and msg2 != 'Record added successfully':
-                    self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
-                self.__message(msg, buttons=['ok'])
+                if host:
+                    msg2 = None
+                    try:
+                        ipvers = ip_address(host['data'])
+                        if type(ipvers) == IPv4Address:
+                            msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
+                            self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
+                            if host['create_ptr']:
+                                rev = '%s.in-addr.arpa' % '.'.join(list(reversed(host['data'].split('.'))))
+                                parent = self.conn.match_zone(rev)
+                                if not parent:
+                                    msg2 = 'Zone does not exist; record could not be added.'
+                                else:
+                                    name = '%s.%s' % (host['name'], current_parent)
+                                    data = rev.split(parent)[0][:-1]
+                                    msg2 = self.conn.add_record(parent, data, 'PTR', name)
+                        elif type(ipvers) == IPv6Address:
+                            msg = self.conn.add_record(current_parent, host['name'], 'AAAA', host['data'])
+                            self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
+                            if host['create_ptr']:
+                                rev = '%s.ip6.arpa' % '.'.join(list(reversed(list(host['data'].replace(':', '')))))
+                                parent = self.conn.match_zone(rev)
+                                if not parent:
+                                    msg2 = 'Zone does not exist; record could not be added.'
+                                else:
+                                    name = '%s.%s' % (host['name'], current_parent)
+                                    data = rev.split(parent)[0][:-1]
+                                    msg2 = self.conn.add_record(parent, data, 'PTR', name)
+                    except ValueError as e:
+                        msg = str(e)
+                    if msg2 and msg2 != 'Record added successfully':
+                        self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
+                    self.__message(msg, buttons=['ok'])
             elif ret == 'new_alias':
                 cname = NewDialog('cname', current_parent).Show()
-                msg = self.conn.add_record(current_parent, cname['name'], 'CNAME', cname['data'])
-                self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
-                self.__message(msg, buttons=['ok'])
+                if cname:
+                    msg = self.conn.add_record(current_parent, cname['name'], 'CNAME', cname['data'])
+                    self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
+                    self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 top = UI.QueryWidget('dns_tree', 'Value')
                 choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
