@@ -655,9 +655,9 @@ class DNS:
         items = []
         for name in records.keys():
             if len(records[name]['records']) > 0:
-                items.extend([Item(Id('%s%s:%d' % (prepend, name, r['type'])), '%s%s' % (prepend, name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), r['data'] if 'data' in r else '', '') for r in records[name]['records']])
+                items.extend([Item(Id('%s%s:%d' % (prepend if r['type'] == dnsp.DNS_TYPE_PTR else '', name, r['type'])), '%s%s' % (prepend if r['type'] == dnsp.DNS_TYPE_PTR else '', name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), r['data'] if 'data' in r else '', '') for r in records[name]['records']])
             elif name:
-                items.append(Item(Id('%s%s:' % (prepend, name)), '%s%s' % (prepend, name), '', '', ''))
+                items.append(Item(Id('%s:' % name), '%s' % name, '', '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
     def __tree_children(self, records, parent, expand=None):
