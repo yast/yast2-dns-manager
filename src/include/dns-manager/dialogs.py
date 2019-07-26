@@ -64,7 +64,7 @@ class NewDialog:
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), self.parent)),
                 Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) for target host:')),
                 Left(TextEntry(Id('data'), '')),
-                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same name. This setting applies only to DNS records for a new name.')),
+                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
@@ -86,7 +86,7 @@ class NewDialog:
                 Left(Label(Id('data_label'), 'IP address:')),
                 Left(TextEntry(Id('data'), '')),
                 Left(CheckBox(Id('create_ptr'), 'Create associated pointer (PTR) record')),
-                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update DNS records with the same owner name')),
+                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update DNS records with the\nsame owner name')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'Add %s' % self.obj_type.capitalize()),
                     PushButton(Id('cancel'), 'Cancel')
