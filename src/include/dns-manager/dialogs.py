@@ -499,7 +499,7 @@ class DNS:
                 choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
                 result = self.conn.records(top)
                 record = result[choice] if result and choice in result else None
-                nchoice = '%s.%s' % (choice, top)
+                nchoice = '%s.%s' % (choice, top) if choice else top
                 if choice not in result:
                     if choice.split('.')[-1] in result:
                         record = result[choice.split('.')[-1]]
@@ -509,7 +509,7 @@ class DNS:
                     if rec['type'] == int(dns_type):
                         data = rec['data']
                         break
-                if data and self.__message('Do you want to delete the record %s from the server?' % choice, title='DNS', warn=True):
+                if data and self.__message('Do you want to delete the record %s from the server?' % (choice if choice else nchoice), title='DNS', warn=True):
                     type_name = self.__dns_type_name(int(dns_type))
                     m = re.match('[\w\s]*\s*\((\w+)\)', type_name)
                     if m:
