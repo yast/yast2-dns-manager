@@ -125,10 +125,13 @@ class NewDialog:
         ]
 
     def __host_dialog(self):
+        def fqdn_hook():
+            name = UI.QueryWidget('name', 'Value')
+            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Name (uses parent domain name if blank):')),
-                Left(TextEntry(Id('name'), '')),
+                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Left(Label(Id('data_label'), 'IP address:')),
@@ -142,7 +145,7 @@ class NewDialog:
             ),
             ['name', 'data', 'create_ptr', 'allow_update'], # known keys
             ['name', 'data'], # required keys
-            None, # dialog hook
+            fqdn_hook, # dialog hook
             ],
         ]
 
