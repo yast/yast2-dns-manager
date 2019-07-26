@@ -101,10 +101,13 @@ class NewDialog:
         ]
 
     def __cname_dialog(self):
+        def fqdn_hook():
+            name = UI.QueryWidget('name', 'Value')
+            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Alias name (uses parent domain if left blank):')),
-                Left(TextEntry(Id('name'), '')),
+                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) for target host:')),
@@ -117,7 +120,7 @@ class NewDialog:
             ),
             ['name', 'data', 'allow_update'], # known keys
             ['name', 'data'], # required keys
-            None, # dialog hook
+            fqdn_hook, # dialog hook
             ],
         ]
 
