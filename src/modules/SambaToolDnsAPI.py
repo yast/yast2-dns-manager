@@ -7,7 +7,7 @@ from samba.netcmd import dns
 from samba.netcmd import CommandError
 import re
 from samba.dcerpc import dnsp
-from samba import NTSTATUSError
+from samba import NTSTATUSError, WERRORError
 from samba.net import Net
 from samba.credentials import Credentials
 from samba.dcerpc import nbt
@@ -43,7 +43,7 @@ def zonelist(server, username, password):
     cmd.outf = output
     try:
         cmd.run(server, 'longhorn', sambaopts=sambaopts, credopts=credopts)
-    except CommandError:
+    except (CommandError, NTSTATUSError, WERRORError):
         return {}
     res = {}
     for zone in output.getvalue().split('\n\n'):
@@ -87,7 +87,7 @@ def query(server, zone, name, rtype, username, password):
     dns.print_dnsrecords = fetch_dnsrecords
     try:
         cmd.run(server, zone, name, rtype, sambaopts=sambaopts, credopts=credopts)
-    except CommandError:
+    except (CommandError, NTSTATUSError, WERRORError):
         return {}
     records = {}
     for rec in results.rec:
@@ -134,7 +134,7 @@ def add_record(server, zone, name, rtype, data, username, password):
         cmd.run(server, zone, name, rtype, data, sambaopts, credopts)
     except CommandError as e:
         return str(e)
-    except NTSTATUSError as e:
+    except (NTSTATUSError, WERRORError) as e:
         return e.args[1]
     return output.getvalue().strip()
 
@@ -157,6 +157,6 @@ def delete_record(server, zone, name, rtype, data, username, password):
         cmd.run(server, zone, name, rtype, data, sambaopts, credopts)
     except CommandError as e:
         return str(e)
-    except NTSTATUSError as e:
+    except (NTSTATUSError, WERRORError) as e:
         return e.args[1]
     return output.getvalue().strip()
