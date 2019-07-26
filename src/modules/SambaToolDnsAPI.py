@@ -8,6 +8,23 @@ from samba.netcmd import CommandError
 import re
 from samba.dcerpc import dnsp
 from samba import NTSTATUSError
+from samba.net import Net
+from samba.credentials import Credentials
+from samba.dcerpc import nbt
+from adcommon.strings import strcasecmp
+
+cldap_server = ''
+cldap_ret = None
+def __domain_name(server):
+    global cldap_ret, cldap_server
+    if not cldap_ret or not strcasecmp(server, cldap_server):
+        try:
+            net = Net(Credentials())
+            cldap_ret = net.finddc(address=server, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
+            cldap_server = server
+        except NTSTATUSError as e:
+            ycpbuiltins.y2error(str(e))
+    return cldap_ret.dns_domain if cldap_ret else server
 
 @Declare('map', 'string', 'string', 'string')
 def zonelist(server, username, password):
@@ -19,7 +36,7 @@ def zonelist(server, username, password):
     credopts.ask_for_password = False
     credopts.machine_pass = False
     lp = sambaopts.get_loadparm()
-    lp.set('realm', server)
+    lp.set('realm', __domain_name(server))
     lp.set('debug level', '0')
     output = StringIO()
     cmd = dns.cmd_zonelist()
@@ -61,7 +78,7 @@ def query(server, zone, name, rtype, username, password):
     credopts.ask_for_password = False
     credopts.machine_pass = False
     lp = sambaopts.get_loadparm()
-    lp.set('realm', server)
+    lp.set('realm', __domain_name(server))
     lp.set('debug level', '0')
     cmd = dns.cmd_query()
     def fetch_dnsrecords(_, records):
@@ -108,7 +125,7 @@ def add_record(server, zone, name, rtype, data, username, password):
     credopts.ask_for_password = False
     credopts.machine_pass = False
     lp = sambaopts.get_loadparm()
-    lp.set('realm', server)
+    lp.set('realm', __domain_name(server))
     lp.set('debug level', '0')
     output = StringIO()
     cmd = dns.cmd_add_record()
@@ -131,7 +148,7 @@ def delete_record(server, zone, name, rtype, data, username, password):
     credopts.ask_for_password = False
     credopts.machine_pass = False
     lp = sambaopts.get_loadparm()
-    lp.set('realm', server)
+    lp.set('realm', __domain_name(server))
     lp.set('debug level', '0')
     output = StringIO()
     cmd = dns.cmd_delete_record()
