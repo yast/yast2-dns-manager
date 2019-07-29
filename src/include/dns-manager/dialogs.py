@@ -14,6 +14,71 @@ from complex import Connection
 import re
 from samba.dcerpc import dnsp
 from ipaddress import ip_address, IPv4Address, IPv6Address
+from socket import getaddrinfo, gaierror
+
+class NameServer:
+    def __init__(self, name='', ips=[]):
+        self.name = name
+        self.ips = ips
+
+    def __new(self):
+        items = [Item(ip) for ip in self.ips]
+        return MinSize(56, 22, HBox(HSpacing(3), VBox(
+                VSpacing(1),
+                Left(Label('Enter a server name and one or more IP addresses. Both are required to identify the name server.')),
+                Left(Label('Server fully qualified domain name (FQDN):')),
+                HBox(
+                    HWeight(5, VBox(
+                        Left(TextEntry(Id('hostname'), '', self.name)),
+                    )),
+                    HWeight(1, VBox(
+                        Right(PushButton(Id('resolve'), 'Resolve')),
+                    )),
+                ),
+                Left(Label('IP Addresses of this NS record:')),
+                HBox(
+                    HWeight(5, VBox(
+                        Table(Id('ips'), Header('IP Address'), items),
+                    )),
+                    HWeight(1, VBox(
+                        Right(PushButton(Id('delete'), 'Delete')),
+                    )),
+                ),
+                Bottom(Right(HBox(
+                    Right(PushButton(Id('ok'), 'OK')),
+                    Right(PushButton(Id('cancel'), 'Cancel')),
+                ))),
+                VSpacing(1),
+            ), HSpacing(3)))
+
+    def Show(self):
+        UI.SetApplicationTitle('New Name Server Record')
+        UI.OpenDialog(self.__new())
+        result = None
+        while True:
+            ret = UI.UserInput()
+            if ret == 'abort' or ret == 'cancel':
+                result = None
+                break
+            elif ret == 'resolve':
+                self.name = UI.QueryWidget('hostname', 'Value')
+                try:
+                    resp = getaddrinfo(self.name, None)
+                except gaierror as e:
+                    resp = None
+                if resp:
+                    self.ips = list(set([r[-1][0] for r in resp]))
+                    UI.ChangeWidget('ips', 'Items', [Item(ip) for ip in self.ips])
+                    result = (self.name, self.ips)
+            elif ret == 'delete':
+                selection = UI.QueryWidget('ips', 'CurrentItem')
+                self.ips = [ip for ip in self.ips if ip != selection]
+                UI.ChangeWidget('ips', 'Items', [Item(ip) for ip in self.ips])
+                result = (self.name, self.ips)
+            elif ret == 'ok':
+                break
+        UI.CloseDialog()
+        return result
 
 class NewDialog:
     def __init__(self, obj_type, parent):
@@ -23,6 +88,8 @@ class NewDialog:
         self.title = None
         if self.obj_type in ['cname', 'ptr', 'mx']:
             self.title = 'Resource Record'
+        if self.obj_type == 'ns':
+            self.title = 'Delegation Wizard'
         self.dialog_seq = 0
         self.dialog = None
 
@@ -44,6 +111,8 @@ class NewDialog:
                 self.dialog = self.__ptr_dialog()
             elif strcmp(self.obj_type, 'mx'):
                 self.dialog = self.__mx_dialog()
+            elif strcmp(self.obj_type, 'ns'):
+                self.dialog = self.__ns_dialog()
             else:
                 self.dialog = self.__other_dialog()
         return self.dialog[self.dialog_seq][0]
@@ -62,8 +131,79 @@ class NewDialog:
             ],
         ]
 
+    def __ns_dialog(self):
+        def fqdn_hook(ret):
+            name = UI.QueryWidget('name', 'Value')
+            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+        def name_servers_hook(ret):
+            if 'data' not in self.obj:
+                self.obj['data'] = []
+            if ret == 'add':
+                server = NameServer().Show()
+                if server:
+                    self.obj['data'].append(server)
+                    items = [Item(Id(server[0]), server[0], '[%s]' % '] ['.join(server[1])) for server in self.obj['data']]
+                    UI.ChangeWidget('items', 'Items', items)
+            elif ret == 'edit':
+                selection = UI.QueryWidget('items', 'CurrentItem')
+                found = None
+                for server in self.obj['data']:
+                    if server[0] == selection:
+                        found = server
+                        break
+                server = None
+                if found:
+                    server = NameServer(found[0], found[1]).Show()
+                if server:
+                    self.obj['data'] = [s for s in self.obj['data'] if s[0] != selection]
+                    self.obj['data'].append(server)
+                    items = [Item(Id(server[0]), server[0], '[%s]' % '] ['.join(server[1])) for server in self.obj['data']]
+                    UI.ChangeWidget('items', 'Items', items)
+            elif ret == 'remove':
+                selection = UI.QueryWidget('items', 'CurrentItem')
+                if selection:
+                    self.obj['data'] = [s for s in self.obj['data'] if s[0] != selection]
+                    items = [Item(Id(server[0]), server[0], '[%s]' % '] ['.join(server[1])) for server in self.obj['data']]
+                    UI.ChangeWidget('items', 'Items', items)
+        return [
+            [VBox(
+                Left(Label('Specify the name of the DNS domain you want to delegate.')),
+                Left(Label(Id('name_label'), 'Delegated domain:')),
+                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
+                Left(Label('Fully qualified domain name (FQDN):')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Bottom(Right(HBox(
+                    PushButton(Id('next'), 'Next >'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name'], # known keys
+            ['name'], # required keys
+            fqdn_hook, # dialog hook
+            ],
+            [VBox(
+                Left(Label('Specify the names and IP addresses of the DNS servers you want to have host the\ndelegated zone.')),
+                Left(Label('Name servers:')),
+                Table(Id('items'), Header('Server Fully Qualified Domain Name (FQDN)', 'IP Address'), []),
+                Left(HBox(
+                    PushButton(Id('add'), 'Add...'),
+                    PushButton(Id('edit'), 'Edit...'),
+                    PushButton(Id('remove'), 'Remove'),
+                )),
+                Bottom(Right(HBox(
+                    PushButton(Id('back'), '< Back'),
+                    PushButton(Id('finish'), 'Finish'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            [], # known keys
+            [], # required keys
+            name_servers_hook, # dialog hook
+            ],
+        ]
+
     def __mx_dialog(self):
-        def fqdn_hook():
+        def fqdn_hook(ret):
             name = UI.QueryWidget('name', 'Value')
             UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
         return [
@@ -89,7 +229,7 @@ class NewDialog:
         ]
 
     def __ptr_dialog(self):
-        def fqdn_hook():
+        def fqdn_hook(ret):
             name = UI.QueryWidget('name', 'Value')
             if re.match('[\d+\.]+in\-addr\.arpa', self.parent):
                 UI.ChangeWidget('fqdn', 'Value', '%s.%s' % ('.'.join(reversed(name.split('.'))), self.parent))
@@ -129,7 +269,7 @@ class NewDialog:
         ]
 
     def __cname_dialog(self):
-        def fqdn_hook():
+        def fqdn_hook(ret):
             name = UI.QueryWidget('name', 'Value')
             UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
         return [
@@ -153,7 +293,7 @@ class NewDialog:
         ]
 
     def __host_dialog(self):
-        def fqdn_hook():
+        def fqdn_hook(ret):
             name = UI.QueryWidget('name', 'Value')
             UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
         return [
@@ -204,16 +344,17 @@ class NewDialog:
         for key in self.obj:
             UI.ChangeWidget(key, 'Value', self.obj[key])
 
-    def __dialog_hook(self):
+    def __dialog_hook(self, ret):
         hook = self.dialog[self.dialog_seq][3]
         if hook:
-            hook()
+            hook(ret)
 
     def Show(self):
         UI.SetApplicationTitle('New %s' % (self.title if self.title else self.obj_type.title()))
         UI.OpenDialog(self.__new())
+        ret = None
         while True:
-            self.__dialog_hook()
+            self.__dialog_hook(ret)
             ret = UI.UserInput()
             if str(ret) == 'abort' or str(ret) == 'cancel':
                 ret = None
@@ -605,6 +746,12 @@ class DNS:
                     msg = self.conn.add_record(current_parent, mx['name'], 'MX', '%s %s' % (mx['data'], mx['priority']))
                     self.__refresh(item=mx['name'], dns_type=dnsp.DNS_TYPE_MX)
                     self.__message(msg, buttons=['ok'])
+            elif ret == 'new_delegation':
+                ns = NewDialog('ns', current_parent).Show()
+                if ns:
+                    for server in ns['data']:
+                        self.conn.add_record(current_parent, ns['name'], 'NS', server[0])
+                    self.__refresh(top='%s.%s' % (ns['name'], current_parent))
             elif ret == 'delete':
                 top = UI.QueryWidget('dns_tree', 'Value')
                 choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
