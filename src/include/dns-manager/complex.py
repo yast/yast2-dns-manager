@@ -27,24 +27,12 @@ class Connection:
         matching_zones = [zone for zone in list(self._forward.keys()) + list(self._reverse.keys()) if selection[-len(zone):] == zone]
         return max(matching_zones, key=len) if len(matching_zones) > 0 else None
 
-    def records(self, selection):
-        if selection in self._forward or selection in self._reverse:
-            return SambaToolDnsAPI.query(self.server, selection, '@', 'ALL', self.creds.get_username(), self.creds.get_password())
-        else:
-            zone = self.match_zone(selection)
-            if not zone:
-                return {}
-            return SambaToolDnsAPI.query(self.server, zone, selection, 'ALL', self.creds.get_username(), self.creds.get_password())
+    def records(self, zone, selection):
+        return SambaToolDnsAPI.query(self.server, zone, selection, 'ALL', self.creds.get_username(), self.creds.get_password())
 
-    def add_record(self, parent, name, rtype, data):
-        zone = self.match_zone(parent)
-        if not zone:
-            return 'Zone does not exist; record could not be added.'
+    def add_record(self, zone, parent, name, rtype, data):
         fqdn = '%s.%s' % (name, parent)
         return SambaToolDnsAPI.add_record(self.server, zone, fqdn, rtype, data, self.creds.get_username(), self.creds.get_password())
 
-    def delete_record(self, name, rtype, data):
-        zone = self.match_zone(name)
-        if not zone:
-            return 'Zone does not exist; record could not be deleted.'
+    def delete_record(self, zone, name, rtype, data):
         return SambaToolDnsAPI.delete_record(self.server, zone, name, rtype, data, self.creds.get_username(), self.creds.get_password())

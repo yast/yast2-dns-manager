@@ -635,6 +635,7 @@ class DNS:
         current_selection = None
         current_parent = None
         current_dns_type = None
+        current_zone = None
         while True:
             event = UI.WaitForEvent()
             if 'WidgetID' in event:
@@ -649,11 +650,12 @@ class DNS:
                 self.conn = ConnectionDialog().Show()
                 UI.ReplaceWidget('dns_tree_repl', self.__dns_tree())
             elif ret == 'dns_tree':
-                choice = UI.QueryWidget('dns_tree', 'Value')
+                zone, choice = UI.QueryWidget('dns_tree', 'Value').split(':')
                 current_selection = choice
                 current_parent = choice
+                current_zone = zone
                 if choice not in ['dns_edit', 'server', 'forward', 'reverse']:
-                    records = self.conn.records(choice)
+                    records = self.conn.records(zone, choice)
                     if records:
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, choice))
                     if choice in self.conn.forward_zones():
@@ -672,25 +674,26 @@ class DNS:
                     UI.ReplaceWidget('rightPane', Empty())
                     self.__setup_menus()
             elif ret == 'items':
-                top = UI.QueryWidget('dns_tree', 'Value')
+                zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
-                result = self.conn.records(top)
+                result = self.conn.records(zone, top)
                 record = result[choice] if result and choice in result else None
                 nchoice = '%s.%s' % (choice, top)
                 current_selection = nchoice
                 current_dns_type = dns_type
-                if record and 'dwChildCount' in record and record['dwChildCount'] > 0:
+                current_zone = zone
+                if (record and 'dwChildCount' in record and record['dwChildCount'] > 0) or not dns_type:
                     current_parent = nchoice
                     if event['EventReason'] == 'Activated':
-                        self.__refresh(nchoice)
+                        self.__refresh(zone=zone, top=nchoice)
                     self.__setup_menus(mtype='folder')
                 elif record:
                     if event['EventReason'] == 'Activated':
                         PropertiesDialog(int(dns_type), nchoice, record).Show()
                     self.__setup_menus(mtype='object')
             elif ret == 'properties':
-                top = UI.QueryWidget('dns_tree', 'Value')
-                record = self.conn.records(current_selection)['']
+                zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
+                record = self.conn.records(zone, current_selection)['']
                 if record:
                     PropertiesDialog(int(current_dns_type), current_selection, record).Show()
             elif ret == 'new_host':
@@ -700,7 +703,7 @@ class DNS:
                     try:
                         ipvers = ip_address(host['data'])
                         if type(ipvers) == IPv4Address:
-                            msg = self.conn.add_record(current_parent, host['name'], 'A', host['data'])
+                            msg = self.conn.add_record(current_zone, current_parent, host['name'], 'A', host['data'])
                             self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
                             if host['create_ptr']:
                                 rev = '%s.in-addr.arpa' % '.'.join(list(reversed(host['data'].split('.'))))
@@ -710,9 +713,9 @@ class DNS:
                                 else:
                                     name = '%s.%s' % (host['name'], current_parent)
                                     data = rev.split(parent)[0][:-1]
-                                    msg2 = self.conn.add_record(parent, data, 'PTR', name)
+                                    msg2 = self.conn.add_record(current_zone, parent, data, 'PTR', name)
                         elif type(ipvers) == IPv6Address:
-                            msg = self.conn.add_record(current_parent, host['name'], 'AAAA', host['data'])
+                            msg = self.conn.add_record(current_zone, current_parent, host['name'], 'AAAA', host['data'])
                             self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
                             if host['create_ptr']:
                                 rev = '%s.ip6.arpa' % '.'.join(list(reversed(list(host['data'].replace(':', '')))))
@@ -722,7 +725,7 @@ class DNS:
                                 else:
                                     name = '%s.%s' % (host['name'], current_parent)
                                     data = rev.split(parent)[0][:-1]
-                                    msg2 = self.conn.add_record(parent, data, 'PTR', name)
+                                    msg2 = self.conn.add_record(current_zone, parent, data, 'PTR', name)
                     except ValueError as e:
                         msg = str(e)
                     if msg2 and msg2 != 'Record added successfully':
@@ -731,31 +734,31 @@ class DNS:
             elif ret == 'new_alias':
                 cname = NewDialog('cname', current_parent).Show()
                 if cname:
-                    msg = self.conn.add_record(current_parent, cname['name'], 'CNAME', cname['data'])
+                    msg = self.conn.add_record(current_zone, current_parent, cname['name'], 'CNAME', cname['data'])
                     self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_pointer':
                 ptr = NewDialog('ptr', current_parent).Show()
                 if ptr:
-                    msg = self.conn.add_record(current_parent, ptr['name'], 'PTR', ptr['data'])
+                    msg = self.conn.add_record(current_zone, current_parent, ptr['name'], 'PTR', ptr['data'])
                     self.__refresh(item=ptr['name'], dns_type=dnsp.DNS_TYPE_PTR)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_mx':
                 mx = NewDialog('mx', current_parent).Show()
                 if mx:
-                    msg = self.conn.add_record(current_parent, mx['name'], 'MX', '%s %s' % (mx['data'], mx['priority']))
+                    msg = self.conn.add_record(current_zone, current_parent, mx['name'], 'MX', '%s %s' % (mx['data'], mx['priority']))
                     self.__refresh(item=mx['name'], dns_type=dnsp.DNS_TYPE_MX)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_delegation':
                 ns = NewDialog('ns', current_parent).Show()
                 if ns:
                     for server in ns['data']:
-                        self.conn.add_record(current_parent, ns['name'], 'NS', server[0])
-                    self.__refresh(top='%s.%s' % (ns['name'], current_parent))
+                        self.conn.add_record(current_zone, current_parent, ns['name'], 'NS', server[0])
+                    self.__refresh(zone=current_zone, top='%s.%s' % (ns['name'], current_parent))
             elif ret == 'delete':
-                top = UI.QueryWidget('dns_tree', 'Value')
+                zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
-                result = self.conn.records(top)
+                result = self.conn.records(zone, top)
                 record = result[choice] if result and choice in result else None
                 nchoice = '%s.%s' % (choice, top) if choice else top
                 ycpbuiltins.y2error(str(record))
@@ -771,17 +774,17 @@ class DNS:
                         dns_type = m.group(1)
                     else:
                         dns_type = type_name
-                    msg = self.conn.delete_record(nchoice, dns_type, data)
+                    msg = self.conn.delete_record(zone, nchoice, dns_type, data)
                     self.__message(msg, buttons=['ok'])
                     self.__refresh()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
 
-    def __refresh(self, top=None, item=None, dns_type=None):
+    def __refresh(self, zone=None, top=None, item=None, dns_type=None):
         if not top:
-            top = UI.QueryWidget('dns_tree', 'Value')
-        records = self.conn.records(top)
-        self.__tree_select(top)
+            zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
+        records = self.conn.records(zone, top)
+        self.__tree_select(zone, top)
         UI.ReplaceWidget('rightPane', self.__rightpane(records, top))
         UI.SetFocus('items')
         if item and dns_type:
@@ -809,9 +812,10 @@ class DNS:
         UI.CloseDialog()
         return ans
 
-    def __tree_select(self, choice):
-        UI.ReplaceWidget('dns_tree_repl', self.__dns_tree(choice))
-        UI.ChangeWidget('dns_tree', 'CurrentItem', Symbol(choice))
+    def __tree_select(self, zone, choice):
+        select = '%s:%s' % (zone, choice)
+        UI.ReplaceWidget('dns_tree_repl', self.__dns_tree(select))
+        UI.ChangeWidget('dns_tree', 'CurrentItem', Symbol(select))
 
     def __dns_type_name(self, dns_type):
         if dns_type == dnsp.DNS_TYPE_TOMBSTONE:
@@ -921,13 +925,16 @@ class DNS:
                 items.append(Item(Id('%s:' % name), '%s' % name, '', '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
 
-    def __tree_children(self, records, parent, expand=None):
+    def __tree_children(self, zone, records, parent, expand=None):
         children = []
         if records:
             for child in records.keys():
                 if records[child]['dwChildCount'] > 0:
                     cid = '%s.%s' % (child, parent)
-                    children.append(Item(Id(cid), child, cid == expand[-len(cid):] if expand else False, self.__tree_children(records[child]['children'], cid, expand)))
+                    children.append(Item(Id('%s:%s' % (zone, cid)), child, cid == expand[-len(cid):] if expand else False, self.__tree_children(zone, records[child]['children'], cid, expand)))
+                elif child and 'type' not in records[child] and not records[child]['records']:
+                    cid = '%s.%s' % (child, parent)
+                    children.append(Item(Id('%s:%s' % (zone, cid)), child, cid == expand[-len(cid):] if expand else False, []))
         return children
 
     def __dns_tree(self, expand=None):
@@ -936,17 +943,17 @@ class DNS:
             reverse_zones = self.conn.reverse_zones()
             expand_forward = len([z for z in forward_zones if expand[-len(z):] == z]) > 0 if expand else False
             expand_reverse = len([z for z in reverse_zones if expand[-len(z):] == z]) > 0 if expand else False
-            forward_items = [Item(Id(zone), zone, zone == expand[-len(zone):] if expand else False, self.__tree_children(self.conn.records(zone), zone, expand)) for zone in forward_zones]
-            reverse_items = [Item(Id(zone), zone, zone == expand[-len(zone):] if expand else False, self.__tree_children(self.conn.records(zone), zone, expand)) for zone in reverse_zones]
-            tree = [Item(Id('server'), self.conn.server, True, [
-                        Item(Id('forward'), 'Forward Lookup Zones', expand_forward, forward_items),
-                        Item(Id('reverse'), 'Reverse Lookup Zones', expand_reverse, reverse_items)
+            forward_items = [Item(Id('%s:%s' % (zone, zone)), zone, zone == expand[-len(zone):] if expand else False, self.__tree_children(zone, self.conn.records(zone, zone), zone, expand)) for zone in forward_zones]
+            reverse_items = [Item(Id('%s:%s' % (zone, zone)), zone, zone == expand[-len(zone):] if expand else False, self.__tree_children(zone, self.conn.records(zone, zone), zone, expand)) for zone in reverse_zones]
+            tree = [Item(Id(':server'), self.conn.server, True, [
+                        Item(Id(':forward'), 'Forward Lookup Zones', expand_forward, forward_items),
+                        Item(Id(':reverse'), 'Reverse Lookup Zones', expand_reverse, reverse_items)
                         ])
                     ]
         else:
             tree = []
         return Tree(Id('dns_tree'), Opt('notify', 'immediate', 'notifyContextMenu'), '', [
-            Item(Id('dns_edit'), 'DNS', True, tree)
+            Item(Id(':dns_edit'), 'DNS', True, tree)
         ])
 
     def __dns_page(self):
