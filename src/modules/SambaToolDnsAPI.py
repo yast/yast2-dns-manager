@@ -183,3 +183,26 @@ def delete_zone(server, zone, username, password):
     except (NTSTATUSError, WERRORError) as e:
         return e.args[1]
     return output.getvalue().strip()
+
+@Declare('string', 'string', 'string', 'string', 'string')
+def create_zone(server, zone, username, password):
+    parser = OptionParser()
+    sambaopts = SambaOptions(parser)
+    credopts = CredentialsOptions(parser)
+    credopts.creds.parse_string(username)
+    credopts.creds.set_password(password)
+    credopts.ask_for_password = False
+    credopts.machine_pass = False
+    lp = sambaopts.get_loadparm()
+    lp.set('realm', __domain_name(server))
+    lp.set('debug level', '0')
+    output = StringIO()
+    cmd = dns.cmd_zonecreate()
+    cmd.outf = output
+    try:
+        cmd.run(server, zone, 'longhorn', sambaopts, credopts)
+    except CommandError as e:
+        return str(e)
+    except (NTSTATUSError, WERRORError) as e:
+        return e.args[1]
+    return output.getvalue().strip()

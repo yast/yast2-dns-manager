@@ -41,3 +41,8 @@ class Connection:
         ret = SambaToolDnsAPI.delete_zone(self.server, zone, self.creds.get_username(), self.creds.get_password())
         self.__refresh_zones()
         return ret
+
+    def create_zone(self, zone):
+        ret = SambaToolDnsAPI.create_zone(self.server, zone, self.creds.get_username(), self.creds.get_password())
+        self.__refresh_zones()
+        return ret

@@ -13,7 +13,7 @@ from samba import NTSTATUSError
 from complex import Connection
 import re
 from samba.dcerpc import dnsp
-from ipaddress import ip_address, IPv4Address, IPv6Address
+from ipaddress import ip_address, IPv4Address, IPv6Address, ip_network
 from socket import getaddrinfo, gaierror
 
 class NameServer:
@@ -90,6 +90,8 @@ class NewDialog:
             self.title = 'Resource Record'
         if self.obj_type == 'ns':
             self.title = 'Delegation Wizard'
+        if self.obj_type == 'zone':
+            self.title = 'Zone Wizard'
         self.dialog_seq = 0
         self.dialog = None
 
@@ -113,9 +115,11 @@ class NewDialog:
                 self.dialog = self.__mx_dialog()
             elif strcmp(self.obj_type, 'ns'):
                 self.dialog = self.__ns_dialog()
+            elif strcmp(self.obj_type, 'zone'):
+                self.dialog = self.__zone_dialog()
             else:
                 self.dialog = self.__other_dialog()
-        return self.dialog[self.dialog_seq][0]
+        return self.dialog[self.dialog_seq][0]() if callable(self.dialog[self.dialog_seq][0]) else self.dialog[self.dialog_seq][0]
 
     def __other_dialog(self):
         return [
@@ -130,6 +134,128 @@ class NewDialog:
             None, # dialog hook
             ],
         ]
+
+    def __zone_dialog(self):
+        if self.parent == 'forward':
+            return [[VBox(
+                Left(Label('The zone name specifies the portion of the DNS namespace for which this server is\n' \
+                           'authoritative. It might be your organization\'s domain name or a portion of the\n' \
+                           'domain name. The zone name is not the name of the DNS server.')),
+                Left(Label(Id('name_label'), 'Zone name:')),
+                Left(TextEntry(Id('name'), '')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'Finish'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name'], # known keys
+            ['name'], # required keys
+            None, # dialog hook
+            ]]
+        elif self.parent == 'reverse':
+            def ip_hook(ret):
+                if ret in ['id1', 'id2', 'id3']:
+                    name = 'in-addr.arpa'
+                    id1 = UI.QueryWidget('id1', 'Value')
+                    id1 = re.sub('[^0-9]','', id1)
+                    UI.ChangeWidget('id1', 'Value', id1)
+                    id2 = UI.QueryWidget('id2', 'Value')
+                    id2 = re.sub('[^0-9]','', id2)
+                    UI.ChangeWidget('id2', 'Value', id2)
+                    id3 = UI.QueryWidget('id3', 'Value')
+                    id3 = re.sub('[^0-9]','', id3)
+                    UI.ChangeWidget('id3', 'Value', id3)
+                    if id1:
+                        name = '%s.%s' % (id1, name)
+                        if id2:
+                            name = '%s.%s' % (id2, name)
+                            if id3:
+                                name = '%s.%s' % (id3, name)
+                    UI.ChangeWidget('name', 'Value', name)
+                elif ret == 'netid':
+                    UI.ChangeWidget('name', 'Enabled', False)
+                    UI.ChangeWidget('id1', 'Enabled', True)
+                    UI.ChangeWidget('id2', 'Enabled', True)
+                    UI.ChangeWidget('id3', 'Enabled', True)
+                    UI.SetFocus('id1')
+                elif ret == 'zone_name':
+                    UI.ChangeWidget('name', 'Enabled', True)
+                    UI.ChangeWidget('id1', 'Enabled', False)
+                    UI.ChangeWidget('id2', 'Enabled', False)
+                    UI.ChangeWidget('id3', 'Enabled', False)
+                    UI.SetFocus('name')
+                if ret == 'prefix':
+                    prefix = UI.QueryWidget('prefix', 'Value')
+                    name = ''
+                    try:
+                        network = ip_network(prefix)
+                    except:
+                        network = None
+                    if network:
+                        UI.ChangeWidget('name', 'Value', network.network_address.reverse_pointer[int(2*(128-network.prefixlen)/4):])
+                    else:
+                        UI.ChangeWidget('name', 'Value', '')
+            def ip_dialog():
+                if 'ipv4' in self.obj and self.obj['ipv4']:
+                    return VBox(
+                        Left(Label('To identify the reverse lookup zone, type the network ID or the name of the zone.')),
+                        RadioButtonGroup(VBox(
+                            Left(RadioButton(Id('netid'), Opt('notify', 'immediate'), 'Network ID:', True)),
+                            HBox(
+                                TextEntry(Id('id1'), Opt('notify', 'immediate'), ''),
+                                Label('.'),
+                                TextEntry(Id('id2'), Opt('notify', 'immediate'), ''),
+                                Label('.'),
+                                TextEntry(Id('id3'), Opt('notify', 'immediate'), ''),
+                                Label('.'),
+                                TextEntry(Opt('disabled'), ''),
+                            ),
+                            Left(Label('The network ID is the portion of the IP addresses that belongs to this zone. Enter the\nnetwork ID in its normal (not reversed) order.')),
+                            Left(Label('If you use a zero in the network ID, it will appear in the zone name. For example,\nnetwork ID 10 would create zone 10.in-addr.arpa, and network ID 10.0 would create\nzone 0.10.in-addr.arpa.')),
+                            Left(RadioButton(Id('zone_name'), Opt('notify', 'immediate'), 'Reverse lookup zone name:')),
+                            Left(TextEntry(Id('name'), Opt('disabled'), '')),
+                        )),
+                        Bottom(Right(HBox(
+                            PushButton(Id('finish'), 'Finish'),
+                            PushButton(Id('cancel'), 'Cancel')
+                        ))),
+                    )
+                elif 'ipv6' in self.obj and self.obj['ipv6']:
+                    return VBox(
+                        Left(Label('To name the reverse lookup zone, enter an IPv6 address prefix to auto generate the\nzone name.')),
+                        Left(Label(Id('name_label'), 'IPv6 Address Prefix:')),
+                        Left(TextEntry(Id('prefix'), Opt('notify', 'immediate'), '')),
+                        Left(Label('Reverse Lookup Zone')),
+                        Left(TextEntry(Id('name'), Opt('disabled'), '')),
+                        Bottom(Right(HBox(
+                            PushButton(Id('finish'), 'Finish'),
+                            PushButton(Id('cancel'), 'Cancel')
+                        ))),
+                    )
+                else:
+                    return Empty()
+            return [
+                [VBox(
+                    Left(Label('Choose whether you want to create a reverse lookup zone for IPv4 addresses or IPv6\naddresses.')),
+                    RadioButtonGroup(VBox(Id('ip'),
+                        Left(RadioButton(Id('ipv4'), 'IPv4 Reverse Lookup Zone', True)),
+                        Left(RadioButton(Id('ipv6'), 'IPv6 Reverse Lookup Zone')),
+                    )),
+                    Bottom(Right(HBox(
+                        PushButton(Id('next'), 'Next >'),
+                        PushButton(Id('cancel'), 'Cancel')
+                    ))),
+                ),
+                ['ipv4', 'ipv6'], # known keys
+                [], # required keys
+                None, # dialog hook
+                ],
+                [ip_dialog,
+                ['name'], # known keys
+                ['name'], # required keys
+                ip_hook, # dialog hook
+                ],
+            ]
 
     def __ns_dialog(self):
         def fqdn_hook(ret):
@@ -756,6 +882,12 @@ class DNS:
                     for server in ns['data']:
                         self.conn.add_record(current_zone, current_parent, ns['name'], 'NS', server[0])
                     self.__refresh(zone=current_zone, top='%s.%s' % (ns['name'], current_parent))
+            elif ret == 'new_zone':
+                zone = NewDialog('zone', current_parent).Show()
+                if zone:
+                    msg = self.conn.create_zone(zone['name'])
+                    self.__refresh(zone=zone)
+                    self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 if zone == top: # Delete a zone
