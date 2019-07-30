@@ -761,7 +761,6 @@ class DNS:
                 result = self.conn.records(zone, top)
                 record = result[choice] if result and choice in result else None
                 nchoice = '%s.%s' % (choice, top) if choice else top
-                ycpbuiltins.y2error(str(record))
                 data = None
                 for rec in record['records']:
                     if rec['type'] == int(dns_type):
