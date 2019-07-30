@@ -36,3 +36,8 @@ class Connection:
 
     def delete_record(self, zone, name, rtype, data):
         return SambaToolDnsAPI.delete_record(self.server, zone, name, rtype, data, self.creds.get_username(), self.creds.get_password())
+
+    def delete_zone(self, zone):
+        ret = SambaToolDnsAPI.delete_zone(self.server, zone, self.creds.get_username(), self.creds.get_password())
+        self.__refresh_zones()
+        return ret

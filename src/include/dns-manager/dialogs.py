@@ -622,8 +622,9 @@ class DNS:
         if mtype and mtype in ['fzone', 'rzone', 'folder']:
             menus.append({'title': 'New Delegation...', 'id': 'new_delegation', 'type': 'MenuEntry', 'parent': 'action'})
             menus.append({'title': 'Other New Records...', 'id': 'other_new_records', 'type': 'MenuEntry', 'parent': 'action'})
-        if mtype and mtype == 'object':
+        if mtype and mtype in ['object', 'fzone', 'rzone']:
             menus.append({'title': 'Delete', 'id': 'delete', 'type': 'MenuEntry', 'parent': 'action'})
+        if mtype and mtype == 'object':
             menus.append({'title': 'Properties', 'id': 'properties', 'type': 'MenuEntry', 'parent': 'action'})
         CreateMenu(menus)
 
@@ -757,25 +758,31 @@ class DNS:
                     self.__refresh(zone=current_zone, top='%s.%s' % (ns['name'], current_parent))
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
-                choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
-                result = self.conn.records(zone, top)
-                record = result[choice] if result and choice in result else None
-                nchoice = '%s.%s' % (choice, top) if choice else top
-                data = None
-                for rec in record['records']:
-                    if rec['type'] == int(dns_type):
-                        data = rec['data']
-                        break
-                if data and self.__message('Do you want to delete the record %s from the server?' % (choice if choice else nchoice), title='DNS', warn=True):
-                    type_name = self.__dns_type_name(int(dns_type))
-                    m = re.match('[\w\s]*\s*\((\w+)\)', type_name)
-                    if m:
-                        dns_type = m.group(1)
-                    else:
-                        dns_type = type_name
-                    msg = self.conn.delete_record(zone, nchoice, dns_type, data)
-                    self.__message(msg, buttons=['ok'])
-                    self.__refresh()
+                if zone == top: # Delete a zone
+                    if self.__message('Do you want to delete the zone %s from the server?' % zone, title='DNS', warn=True):
+                        msg = self.conn.delete_zone(zone)
+                        self.__message(msg, buttons=['ok'])
+                        self.__refresh()
+                else:
+                    choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
+                    result = self.conn.records(zone, top)
+                    record = result[choice] if result and choice in result else None
+                    nchoice = '%s.%s' % (choice, top) if choice else top
+                    data = None
+                    for rec in record['records']:
+                        if rec['type'] == int(dns_type):
+                            data = rec['data']
+                            break
+                    if data and self.__message('Do you want to delete the record %s from the server?' % (choice if choice else nchoice), title='DNS', warn=True):
+                        type_name = self.__dns_type_name(int(dns_type))
+                        m = re.match('[\w\s]*\s*\((\w+)\)', type_name)
+                        if m:
+                            dns_type = m.group(1)
+                        else:
+                            dns_type = type_name
+                        msg = self.conn.delete_record(zone, nchoice, dns_type, data)
+                        self.__message(msg, buttons=['ok'])
+                        self.__refresh()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
 
