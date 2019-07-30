@@ -660,7 +660,7 @@ class DNS:
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, choice))
                     if choice in self.conn.forward_zones():
                         self.__setup_menus(mtype='fzone')
-                    if choice in self.conn.reverse_zones():
+                    elif choice in self.conn.reverse_zones():
                         self.__setup_menus(mtype='rzone')
                     else:
                         self.__setup_menus(mtype='folder')
