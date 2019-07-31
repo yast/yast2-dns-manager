@@ -994,11 +994,7 @@ class DNS:
                     result = self.conn.records(zone, top)
                     record = result[choice] if result and choice in result else None
                     nchoice = '%s.%s' % (choice, top) if choice else top
-                    data = None
-                    for rec in record['records']:
-                        if rec['type'] == int(dns_type):
-                            data = rec['data']
-                            break
+                    data = self.__dns_record_to_data(int(dns_type), record)
                     if data and self.__message('Do you want to delete the record %s from the server?' % (choice if choice else nchoice), title='DNS', warn=True):
                         type_name = self.__dns_type_name(int(dns_type))
                         m = re.match('[\w\s]*\s*\((\w+)\)', type_name)
@@ -1009,8 +1005,27 @@ class DNS:
                         msg = self.conn.delete_record(zone, nchoice, dns_type, data)
                         self.__message(msg, buttons=['ok'])
                         self.__refresh()
+                    else:
+                        self.__message('Deleting record of type %s is not supported' % self.__dns_type_name(int(dns_type)), buttons=['ok'])
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
+
+    def __dns_record_to_data(self, record_type, record):
+        srecord = None
+        for rec in record['records']:
+            if rec['type'] == record_type:
+                srecord = rec
+                break
+        if record_type in [dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_NS]:
+            return srecord['data']
+        elif record_type == dnsp.DNS_TYPE_MX:
+            return '%s %d' % (srecord['nameExchange'], srecord['preference'])
+        elif record_type == dnsp.DNS_TYPE_SRV:
+            return '%s %d %d %d' % (srecord['nameTarget'], srecord['port'], srecord['priority'], srecord['weight'])
+        elif record_type == dnsp.DNS_TYPE_TXT:
+            return ' '.join(srecord['data'])
+        return None
+
 
     def __refresh(self, zone=None, top=None, item=None, dns_type=None):
         if not top:
