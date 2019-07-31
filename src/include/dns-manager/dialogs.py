@@ -1138,6 +1138,12 @@ class DNS:
             items = [Item(Id('%s:' % zone), zone, '', '') for zone in self.conn.reverse_zones()]
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Status'), items)
 
+    def __flaten_data(self, data):
+        if type(data) == list or type(data) == tuple:
+            return ' '.join([self.__flaten_data(d) for d in data])
+        else:
+            return str(data)
+
     def __rightpane(self, records, parent):
         prepend = ''
         m = re.match('([\d+\.]+)(in\-addr)\.arpa', parent)
@@ -1152,7 +1158,7 @@ class DNS:
         items = []
         for name in records.keys():
             if len(records[name]['records']) > 0:
-                items.extend([Item(Id('%s:%d' % (name, r['type'])), '%s%s' % (prepend if r['type'] == dnsp.DNS_TYPE_PTR else '', name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), r['data'] if 'data' in r else '', '') for r in records[name]['records']])
+                items.extend([Item(Id('%s:%d' % (name, r['type'])), '%s%s' % (prepend if r['type'] == dnsp.DNS_TYPE_PTR else '', name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), self.__flaten_data(r['data']) if 'data' in r else '', '') for r in records[name]['records']])
             elif name:
                 items.append(Item(Id('%s:' % name), '%s' % name, '', '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
