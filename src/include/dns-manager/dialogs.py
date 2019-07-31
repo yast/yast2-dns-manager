@@ -82,16 +82,18 @@ class NameServer:
 
 class NewDialog:
     def __init__(self, obj_type, parent):
-        self.obj = {}
+        self.obj = {'type' : obj_type}
         self.obj_type = obj_type
         self.parent = parent
         self.title = None
-        if self.obj_type in ['cname', 'ptr', 'mx']:
+        if self.obj_type in ['cname', 'ptr', 'mx', 'srv']:
             self.title = 'Resource Record'
         if self.obj_type == 'ns':
             self.title = 'Delegation Wizard'
         if self.obj_type == 'zone':
             self.title = 'Zone Wizard'
+        if self.obj_type == 'other':
+            self.title = 'Resource Record Type'
         self.dialog_seq = 0
         self.dialog = None
 
@@ -117,21 +119,109 @@ class NewDialog:
                 self.dialog = self.__ns_dialog()
             elif strcmp(self.obj_type, 'zone'):
                 self.dialog = self.__zone_dialog()
+            elif strcmp(self.obj_type, 'srv'):
+                self.dialog = self.__srv_dialog()
             else:
                 self.dialog = self.__other_dialog()
         return self.dialog[self.dialog_seq][0]() if callable(self.dialog[self.dialog_seq][0]) else self.dialog[self.dialog_seq][0]
 
     def __other_dialog(self):
+        self.selection = 'srv'
+        self.desc = {'srv' : 'Service (SRV) record. Allows administrators to use several servers\nfor a single DNS domain, to easily move a TCP/IP service from one\nhost to another host with administration, and to designate some\nservice provider hosts as primary servers for a service and other\nhosts as backups. DNS clients that use a SRV-type query ask for a\nspecific TCP/IP service and protocol mapped  to a specific DNS\ndomain and receive the names of any available servers. (RFC 2052)', 'txt' : 'Text (TXT) record. Holds a string of characters that serves as\ndescriptive text to be associated with a specific DNS domain name.\nThe semantics of the actual descriptive text used as data with this\nrecord type depends on the DNS domain where these records are\nlocated. (RFC 1035)'}
+        def selection_hook(ret):
+            if ret == 'types':
+                self.selection = UI.QueryWidget('types', 'CurrentItem')
+                if self.selection == 'srv':
+                    UI.ChangeWidget('description', 'Value', self.desc['srv'])
+                elif self.selection == 'txt':
+                    UI.ChangeWidget('description', 'Value', self.desc['txt'])
+            elif ret == 'next':
+                self.obj = NewDialog(self.selection, self.parent).Show()
+        def other_dialog():
+            items = [Item(Id('srv'), 'Service Location (SRV)', self.selection == 'srv'),
+                     Item(Id('txt'), 'Text (TXT)', self.selection == 'txt')]
+            buttons = [HBox(
+                           PushButton(Id('next'), 'Create Record...'),
+                           PushButton(Id('cancel'), 'Cancel'),
+                       ),
+                       HBox(
+                           PushButton(Opt('disabled'), 'Create Record...'),
+                           PushButton(Id('finish'), 'Done'),
+                       )]
+            return VBox(
+                Left(Label('Select a resource record type:')),
+                Left(SelectionBox(Id('types'), Opt('notify', 'immediate'), '', items)),
+                Left(Label('Description:')),
+                Left(MinSize(70, 8, MultiLineEdit(Id('description'), Opt('disabled'), '', self.desc[self.selection]))),
+                Bottom(Right(HBox(
+                    buttons[self.dialog_seq],
+                ))),
+            )
+        return [
+            [other_dialog,
+            [], # known keys
+            [], # required keys
+            selection_hook, # dialog hook
+            ],
+            [other_dialog,
+            [], # known keys
+            [], # required keys
+            selection_hook, # dialog hook
+            ],
+        ]
+
+    def __srv_dialog(self):
+        service_items = ['', '_finger', '_ftp', '_http', '_kerberos', '_ldap', '_msdcs', '_nntp', '_telnet', '_whois']
+        def srv_hook(ret):
+            if ret == 'service':
+                selection = UI.QueryWidget('service', 'Value')
+                if selection == '_finger':
+                    UI.ChangeWidget('port', 'Value', 79)
+                elif selection == '_ftp':
+                    UI.ChangeWidget('port', 'Value', 21)
+                elif selection == '_http':
+                    UI.ChangeWidget('port', 'Value', 80)
+                elif selection == '_kerberos':
+                    UI.ChangeWidget('port', 'Value', 88)
+                elif selection in ['_ldap', '_msdcs']:
+                    UI.ChangeWidget('port', 'Value', 389)
+                elif selection == '_nntp':
+                    UI.ChangeWidget('port', 'Value', 119)
+                elif selection == '_telnet':
+                    UI.ChangeWidget('port', 'Value', 23)
+                elif selection == '_whois':
+                    UI.ChangeWidget('port', 'Value', 43)
         return [
             [VBox(
+                HBox(
+                    HWeight(1, VBox(
+                        Left(Label('Domain:')),
+                        Left(Label('Service:')),
+                        Left(Label('Protocol:')),
+                        Left(Label(Id('priority_label'), 'Priority:')),
+                        Left(Label(Id('weight_label'), 'Weight:')),
+                        Left(Label(Id('port_label'), 'Port number:')),
+                    )),
+                    HWeight(3, VBox(
+                        Left(TextEntry(Opt('disabled', 'hstretch'), '', self.parent)),
+                        Left(ComboBox(Id('service'), Opt('editable', 'notify', 'hstretch'), '', service_items)),
+                        Left(ComboBox(Opt('disabled', 'hstretch'), '', ['_tcp'])),
+                        Left(IntField(Id('priority'), Opt('hstretch'), '', 0, 99999, 0)),
+                        Left(IntField(Id('weight'), Opt('hstretch'), '', 0, 99999, 0)),
+                        Left(IntField(Id('port'), Opt('hstretch'), '', 1, 65535, 1)),
+                    )),
+                ),
+                Left(Label(Id('nameTarget_label'), 'Host offering this service:')),
+                Left(TextEntry(Id('nameTarget'), Opt('hstretch'), '')),
+                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
                 Bottom(Right(HBox(
-                    PushButton(Id('finish'), 'Add %s' % self.obj_type.capitalize()),
+                    PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
                 ))),
             ),
-            [], # known keys
-            [], # required keys
-            None, # dialog hook
+            ['service', 'priority', 'weight', 'port', 'nameTarget'], # known keys
+            ['service', 'priority', 'weight', 'port', 'nameTarget'], # required keys
+            srv_hook, # dialog hook
             ],
         ]
 
@@ -456,11 +546,11 @@ class NewDialog:
         known_value_keys = self.dialog[self.dialog_seq][1]
         for key in known_value_keys:
             value = UI.QueryWidget(key, 'Value')
-            if value or type(value) == bool:
+            if value or type(value) == bool or type(value) == int:
                 self.obj[key] = value
         required_value_keys = self.dialog[self.dialog_seq][2]
         for key in required_value_keys:
-            if not key in self.obj or not self.obj[key]:
+            if not key in self.obj or self.obj[key] == '':
                 self.__warn_label(key)
                 ycpbuiltins.y2error('Missing value for %s' % key)
                 ret = False
@@ -885,6 +975,12 @@ class DNS:
                 if zone:
                     msg = self.conn.create_zone(zone['name'])
                     self.__refresh(zone=zone)
+                    self.__message(msg, buttons=['ok'])
+            elif ret == 'other_new_records':
+                obj = NewDialog('other', current_parent).Show()
+                if obj and obj['type'] == 'srv':
+                    msg = self.conn.add_record(current_zone, current_parent, obj['service'], 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
+                    self.__refresh(item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
