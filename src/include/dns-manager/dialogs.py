@@ -840,7 +840,7 @@ class DNS:
                                 else:
                                     name = '%s.%s' % (host['name'], current_parent)
                                     data = rev.split(parent)[0][:-1]
-                                    msg2 = self.conn.add_record(current_zone, parent, data, 'PTR', name)
+                                    msg2 = self.conn.add_record(parent, parent, data, 'PTR', name)
                         elif type(ipvers) == IPv6Address:
                             msg = self.conn.add_record(current_zone, current_parent, host['name'], 'AAAA', host['data'])
                             self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
@@ -852,7 +852,7 @@ class DNS:
                                 else:
                                     name = '%s.%s' % (host['name'], current_parent)
                                     data = rev.split(parent)[0][:-1]
-                                    msg2 = self.conn.add_record(current_zone, parent, data, 'PTR', name)
+                                    msg2 = self.conn.add_record(parent, parent, data, 'PTR', name)
                     except ValueError as e:
                         msg = str(e)
                     if msg2 and msg2 != 'Record added successfully':
