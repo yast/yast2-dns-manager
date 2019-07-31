@@ -984,7 +984,7 @@ class DNS:
                     self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
-                if zone == top: # Delete a zone
+                if zone == top and current_selection == zone: # Delete a zone
                     if self.__message('Do you want to delete the zone %s from the server?' % zone, title='DNS', warn=True):
                         msg = self.conn.delete_zone(zone)
                         self.__message(msg, buttons=['ok'])
