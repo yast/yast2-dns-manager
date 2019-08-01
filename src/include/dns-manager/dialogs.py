@@ -199,7 +199,7 @@ class ObjDialog:
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Left(Label(Id('text_label'), 'Text:')),
-                Left(MultiLineEdit(Id('text'), '')),
+                Left(TextEntry(Id('text'), ''),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
