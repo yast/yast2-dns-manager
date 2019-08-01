@@ -2,6 +2,89 @@ from yast import import_module
 import_module('SambaToolDnsAPI')
 from yast import SambaToolDnsAPI
 from samba.netcmd import CommandError
+from samba.dcerpc import dnsp
+
+def dns_type_name(dns_type, short=False):
+    if dns_type == dnsp.DNS_TYPE_TOMBSTONE:
+        return 'TOMBSTONE' if short else '(TOMBSTONE)'
+    elif dns_type == dnsp.DNS_TYPE_A:
+        return 'A' if short else 'Host (A)'
+    elif dns_type == dnsp.DNS_TYPE_NS:
+        return 'NS' if short else 'Name Server (NS)'
+    elif dns_type == dnsp.DNS_TYPE_MD:
+        return 'MD' if short else '(MD)'
+    elif dns_type == dnsp.DNS_TYPE_MF:
+        return 'MF' if short else '(MF)'
+    elif dns_type == dnsp.DNS_TYPE_CNAME:
+        return 'CNAME' if short else 'Alias (CNAME)'
+    elif dns_type == dnsp.DNS_TYPE_SOA:
+        return 'SOA' if short else 'Start of Authority (SOA)'
+    elif dns_type == dnsp.DNS_TYPE_MB:
+        return 'MB' if short else 'Mailbox (MB)'
+    elif dns_type == dnsp.DNS_TYPE_MG:
+        return 'MG' if short else 'Mail Group (MG)'
+    elif dns_type == dnsp.DNS_TYPE_MR:
+        return 'MR' if short else 'Renamed Mailbox (MR)'
+    elif dns_type == dnsp.DNS_TYPE_NULL:
+        return 'NULL' if short else '(NULL)'
+    elif dns_type == dnsp.DNS_TYPE_WKS:
+        return 'WKS' if short else 'Well Known Services (WKS)'
+    elif dns_type == dnsp.DNS_TYPE_PTR:
+        return 'PTR' if short else 'Pointer (PTR)'
+    elif dns_type == dnsp.DNS_TYPE_HINFO:
+        return 'HINFO' if short else 'Host Information (HINFO)'
+    elif dns_type == dnsp.DNS_TYPE_MINFO:
+        return 'MINFO' if short else 'Mailbox Information (MINFO)'
+    elif dns_type == dnsp.DNS_TYPE_MX:
+        return 'MX' if short else 'Mail Exchanger (MX)'
+    elif dns_type == dnsp.DNS_TYPE_TXT:
+        return 'TXT' if short else 'Text (TXT)'
+    elif dns_type == dnsp.DNS_TYPE_RP:
+        return 'RP' if short else 'Responsible Person (RP)'
+    elif dns_type == dnsp.DNS_TYPE_AFSDB:
+        return 'AFSDB' if short else 'AFS Database (AFSDB)'
+    elif dns_type == dnsp.DNS_TYPE_X25:
+        return 'X.25'
+    elif dns_type == dnsp.DNS_TYPE_ISDN:
+        return 'ISDN'
+    elif dns_type == dnsp.DNS_TYPE_RT:
+        return 'RT' if short else 'Route Through (RT)'
+    elif dns_type == dnsp.DNS_TYPE_SIG:
+        return 'SIG' if short else 'Signature (SIG)'
+    elif dns_type == dnsp.DNS_TYPE_KEY:
+        return 'KEY' if short else 'Public Key (KEY)'
+    elif dns_type == dnsp.DNS_TYPE_AAAA:
+        return 'AAAA' if short else 'IPv6 Host (AAAA)'
+    elif dns_type == dnsp.DNS_TYPE_LOC:
+        return 'LOC' if short else '(LOC)'
+    elif dns_type == dnsp.DNS_TYPE_NXT:
+        return 'NXT' if short else 'Next Domain (NXT)'
+    elif dns_type == dnsp.DNS_TYPE_SRV:
+        return 'SRV' if short else 'Service Location (SRV)'
+    elif dns_type == dnsp.DNS_TYPE_ATMA:
+        return 'ATMA' if short else 'ATM Address (ATMA)'
+    elif dns_type == dnsp.DNS_TYPE_NAPTR:
+        return 'NAPTR' if short else '(NAPTR)'
+    elif dns_type == dnsp.DNS_TYPE_DNAME:
+        return 'DNAME' if short else '(DNAME)'
+    elif dns_type == dnsp.DNS_TYPE_DS:
+        return 'DS' if short else '(DS)'
+    elif dns_type == dnsp.DNS_TYPE_RRSIG:
+        return 'RRSIG' if short else '(RRSIG)'
+    elif dns_type == dnsp.DNS_TYPE_NSEC:
+        return 'NSEC' if short else '(NSEC)'
+    elif dns_type == dnsp.DNS_TYPE_DNSKEY:
+        return 'DNSKEY' if short else '(DNSKEY)'
+    elif dns_type == dnsp.DNS_TYPE_DHCID:
+        return 'DHCID' if short else '(DHCID)'
+    elif dns_type == dnsp.DNS_TYPE_ALL:
+        return 'ALL' if short else '(ALL)'
+    elif dns_type == dnsp.DNS_TYPE_WINS:
+        return 'WINS' if short else '(WINS)'
+    elif dns_type == dnsp.DNS_TYPE_WINSR:
+        return 'WINSR' if short else '(WINSR)'
+    else:
+        return 'Unknown'
 
 class Connection:
     def __init__(self, lp, creds, server):
