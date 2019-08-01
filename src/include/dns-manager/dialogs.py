@@ -81,7 +81,7 @@ class NameServer:
         UI.CloseDialog()
         return result
 
-class NewDialog:
+class ObjDialog:
     def __init__(self, obj_type, parent):
         self.obj = {'type' : obj_type}
         self.obj_type = obj_type
@@ -151,7 +151,7 @@ class NewDialog:
             if ret == 'types':
                 self.selection = UI.QueryWidget('types', 'CurrentItem')
             elif ret == 'next':
-                obj = NewDialog(self.selection, self.parent).Show()
+                obj = ObjDialog(self.selection, self.parent).Show()
                 if obj:
                     self.obj['objs'].append(obj)
                 UI.SetApplicationTitle('New Resource Record Type')
@@ -964,7 +964,7 @@ class DNS:
                 if record:
                     PropertiesDialog(int(current_dns_type), current_selection, record).Show()
             elif ret == 'new_host':
-                host = NewDialog('host', current_parent).Show()
+                host = ObjDialog('host', current_parent).Show()
                 if host:
                     msg2 = None
                     try:
@@ -997,37 +997,37 @@ class DNS:
                         self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_alias':
-                cname = NewDialog('cname', current_parent).Show()
+                cname = ObjDialog('cname', current_parent).Show()
                 if cname:
                     msg = self.conn.add_record(current_zone, current_parent, cname['name'], 'CNAME', cname['data'])
                     self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_pointer':
-                ptr = NewDialog('ptr', current_parent).Show()
+                ptr = ObjDialog('ptr', current_parent).Show()
                 if ptr:
                     msg = self.conn.add_record(current_zone, current_parent, ptr['name'], 'PTR', ptr['data'])
                     self.__refresh(item=ptr['name'], dns_type=dnsp.DNS_TYPE_PTR)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_mx':
-                mx = NewDialog('mx', current_parent).Show()
+                mx = ObjDialog('mx', current_parent).Show()
                 if mx:
                     msg = self.conn.add_record(current_zone, current_parent, mx['name'], 'MX', '%s %s' % (mx['data'], mx['priority']))
                     self.__refresh(item=mx['name'], dns_type=dnsp.DNS_TYPE_MX)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'new_delegation':
-                ns = NewDialog('ns', current_parent).Show()
+                ns = ObjDialog('ns', current_parent).Show()
                 if ns:
                     for server in ns['data']:
                         self.conn.add_record(current_zone, current_parent, ns['name'], 'NS', server[0])
                     self.__refresh(zone=current_zone, top='%s.%s' % (ns['name'], current_parent))
             elif ret == 'new_zone':
-                zone = NewDialog('zone', current_parent).Show()
+                zone = ObjDialog('zone', current_parent).Show()
                 if zone:
                     msg = self.conn.create_zone(zone['name'])
                     self.__refresh(zone=zone)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'other_new_records':
-                objs = NewDialog('other', current_parent).Show()
+                objs = ObjDialog('other', current_parent).Show()
                 if objs:
                     for obj in objs['objs']:
                         if obj['type'] == 'srv':
