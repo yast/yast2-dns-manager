@@ -569,6 +569,7 @@ class ObjDialog:
                         self.obj['type'] = dnsp.DNS_TYPE_A
                     elif type(ipvers) == IPv6Address:
                         self.obj['type'] = dnsp.DNS_TYPE_AAAA
+                    self.obj['reverse_pointer'] = ipvers.reverse_pointer
                 except ValueError:
                     self.obj['type'] = None
         return [
@@ -977,54 +978,19 @@ class DNS:
             elif ret == 'new_host':
                 host = ObjDialog('host', current_parent).Show()
                 if host:
-                    msg2 = None
-                    try:
-                        ipvers = ip_address(host['data'])
-                        if type(ipvers) == IPv4Address:
-                            msg = self.conn.add_record(current_zone, current_parent, host['name'], 'A', host['data'])
-                            self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_A)
-                            if host['create_ptr']:
-                                parent = self.conn.match_zone(ipvers.reverse_pointer)
-                                if not parent:
-                                    msg2 = 'Zone does not exist; record could not be added.'
-                                else:
-                                    name = '%s.%s' % (host['name'], current_parent)
-                                    data = ipvers.reverse_pointer.split(parent)[0][:-1]
-                                    msg2 = self.conn.add_record(parent, parent, data, 'PTR', name)
-                        elif type(ipvers) == IPv6Address:
-                            msg = self.conn.add_record(current_zone, current_parent, host['name'], 'AAAA', host['data'])
-                            self.__refresh(item=host['name'], dns_type=dnsp.DNS_TYPE_AAAA)
-                            if host['create_ptr']:
-                                parent = self.conn.match_zone(ipvers.reverse_pointer)
-                                if not parent:
-                                    msg2 = 'Zone does not exist; record could not be added.'
-                                else:
-                                    name = '%s.%s' % (host['name'], current_parent)
-                                    data = ipvers.reverse_pointer.split(parent)[0][:-1]
-                                    msg2 = self.conn.add_record(parent, parent, data, 'PTR', name)
-                    except ValueError as e:
-                        msg = str(e)
-                    if msg2 and msg2 != 'Record added successfully':
-                        self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
-                    self.__message(msg, buttons=['ok'])
+                    self.__add_record(current_zone, current_parent, host)
             elif ret == 'new_alias':
                 cname = ObjDialog('cname', current_parent).Show()
                 if cname:
-                    msg = self.conn.add_record(current_zone, current_parent, cname['name'], 'CNAME', cname['data'])
-                    self.__refresh(item=cname['name'], dns_type=dnsp.DNS_TYPE_CNAME)
-                    self.__message(msg, buttons=['ok'])
+                    self.__add_record(current_zone, current_parent, cname)
             elif ret == 'new_pointer':
                 ptr = ObjDialog('ptr', current_parent).Show()
                 if ptr:
-                    msg = self.conn.add_record(current_zone, current_parent, ptr['name'], 'PTR', ptr['data'])
-                    self.__refresh(item=ptr['name'], dns_type=dnsp.DNS_TYPE_PTR)
-                    self.__message(msg, buttons=['ok'])
+                    self.__add_record(current_zone, current_parent, ptr)
             elif ret == 'new_mx':
                 mx = ObjDialog('mx', current_parent).Show()
                 if mx:
-                    msg = self.conn.add_record(current_zone, current_parent, mx['name'], 'MX', '%s %s' % (mx['data'], mx['priority']))
-                    self.__refresh(item=mx['name'], dns_type=dnsp.DNS_TYPE_MX)
-                    self.__message(msg, buttons=['ok'])
+                    self.__add_record(current_zone, current_parent, mx)
             elif ret == 'new_delegation':
                 ns = ObjDialog('ns', current_parent).Show()
                 if ns:
@@ -1041,14 +1007,7 @@ class DNS:
                 objs = ObjDialog('other', current_parent).Show()
                 if objs:
                     for obj in objs['objs']:
-                        if obj['type'] == dnsp.DNS_TYPE_SRV:
-                            msg = self.conn.add_record(current_zone, current_parent, '%s.%s' % (obj['service'], obj['protocol']), 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
-                            self.__refresh(zone=current_zone, top='%s.%s' % (obj['protocol'], current_parent), item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
-                            self.__message('%s.%s.%s: %s' % (obj['service'], obj['protocol'], current_parent, msg), buttons=['ok'])
-                        elif obj['type'] == dnsp.DNS_TYPE_TXT:
-                            msg = self.conn.add_record(current_zone, current_parent, obj['name'], 'TXT', obj['text'])
-                            self.__refresh(item=obj['name'], dns_type=dnsp.DNS_TYPE_TXT)
-                            self.__message('%s.%s: %s' % (obj['name'], current_parent, msg), buttons=['ok'])
+                        self.__add_record(current_zone, current_parent, obj)
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 if zone == top and current_selection == zone: # Delete a zone
@@ -1078,6 +1037,55 @@ class DNS:
                 self.__refresh()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
+
+    def __add_record(self, zone, parent, record):
+        msg = None
+        if record['type'] == dnsp.DNS_TYPE_SRV:
+            msg = self.conn.add_record(zone, parent, '%s.%s' % (record['service'], record['protocol']), 'SRV', '%s %d %d %d' % (record['nameTarget'], record['port'], record['priority'], record['weight']))
+            self.__refresh(zone=zone, top='%s.%s' % (record['protocol'], parent), item=record['service'], dns_type=dnsp.DNS_TYPE_SRV)
+        elif record['type'] == dnsp.DNS_TYPE_TXT:
+            msg = self.conn.add_record(zone, parent, record['name'], 'TXT', record['text'])
+            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_TXT)
+        elif record['type'] == dnsp.DNS_TYPE_CNAME:
+            msg = self.conn.add_record(zone, parent, record['name'], 'CNAME', record['data'])
+            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_CNAME)
+        elif record['type'] == dnsp.DNS_TYPE_PTR:
+            msg = self.conn.add_record(zone, parent, record['name'], 'PTR', record['data'])
+            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_PTR)
+        elif record['type'] == dnsp.DNS_TYPE_MX:
+            msg = self.conn.add_record(zone, parent, record['name'], 'MX', '%s %s' % (record['data'], record['priority']))
+            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_MX)
+        elif record['type'] == dnsp.DNS_TYPE_A:
+            msg2 = None
+            msg = self.conn.add_record(zone, parent, record['name'], 'A', record['data'])
+            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_A)
+            ipvers = ip_address(record['data'])
+            if record['create_ptr']:
+                ptr_parent = self.conn.match_zone(record['reverse_pointer'])
+                if not ptr_parent:
+                    msg2 = 'Zone does not exist; record could not be added.'
+                else:
+                    name = '%s.%s' % (record['name'], parent)
+                    data = record['reverse_pointer'].split(ptr_parent)[0][:-1]
+                    msg2 = self.conn.add_record(ptr_parent, ptr_parent, data, 'PTR', name)
+            if msg2 and msg2 != 'Record added successfully':
+                self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
+        elif record['type'] == dnsp.DNS_TYPE_AAAA:
+            msg2 = None
+            msg = self.conn.add_record(zone, parent, record['name'], 'AAAA', record['data'])
+            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_AAAA)
+            if record['create_ptr']:
+                ptr_parent = self.conn.match_zone(record['reverse_pointer'])
+                if not ptr_parent:
+                    msg2 = 'Zone does not exist; record could not be added.'
+                else:
+                    name = '%s.%s' % (record['name'], parent)
+                    data = record['reverse_pointer'].split(ptr_parent)[0][:-1]
+                    msg2 = self.conn.add_record(ptr_parent, ptr_parent, data, 'PTR', name)
+            if msg2 and msg2 != 'Record added successfully':
+                self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
+        if msg:
+            self.__message(msg, buttons=['ok'])
 
     def __dns_record_to_data(self, record_type, record):
         srecord = None
