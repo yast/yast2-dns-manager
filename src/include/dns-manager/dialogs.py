@@ -662,7 +662,7 @@ class PropertiesDialog:
             [VBox(
                 *items,
                 Bottom(Right(HBox(
-                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('finish'), Opt('disabled'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel'),
                 ))),
             ),
