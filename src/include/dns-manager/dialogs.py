@@ -148,9 +148,12 @@ class NewDialog:
                 self.dialog = self.__txt_dialog()
             else:
                 self.dialog = self.__other_dialog()
+        if len(self.dialog)-1 < self.dialog_seq:
+            self.dialog_seq -= 1
         return self.dialog[self.dialog_seq][0]() if callable(self.dialog[self.dialog_seq][0]) else self.dialog[self.dialog_seq][0]
 
     def __other_dialog(self):
+        self.obj['objs'] = []
         self.selection = 'srv'
         self.desc = {'srv' : 'Service (SRV) record. Allows administrators to use several servers\nfor a single DNS domain, to easily move a TCP/IP service from one\nhost to another host with administration, and to designate some\nservice provider hosts as primary servers for a service and other\nhosts as backups. DNS clients that use a SRV-type query ask for a\nspecific TCP/IP service and protocol mapped  to a specific DNS\ndomain and receive the names of any available servers. (RFC 2052)', 'txt' : 'Text (TXT) record. Holds a string of characters that serves as\ndescriptive text to be associated with a specific DNS domain name.\nThe semantics of the actual descriptive text used as data with this\nrecord type depends on the DNS domain where these records are\nlocated. (RFC 1035)'}
         def selection_hook(ret):
@@ -161,7 +164,9 @@ class NewDialog:
                 elif self.selection == 'txt':
                     UI.ChangeWidget('description', 'Value', self.desc['txt'])
             elif ret == 'next':
-                self.obj = NewDialog(self.selection, self.parent).Show()
+                obj = NewDialog(self.selection, self.parent).Show()
+                if obj:
+                    self.obj['objs'].append(obj)
         def other_dialog():
             items = [Item(Id('srv'), 'Service Location (SRV)', self.selection == 'srv'),
                      Item(Id('txt'), 'Text (TXT)', self.selection == 'txt')]
@@ -170,7 +175,7 @@ class NewDialog:
                            PushButton(Id('cancel'), 'Cancel'),
                        ),
                        HBox(
-                           PushButton(Opt('disabled'), 'Create Record...'),
+                           PushButton(Id('next'), 'Create Record...'),
                            PushButton(Id('finish'), 'Done'),
                        )]
             return VBox(
@@ -179,7 +184,7 @@ class NewDialog:
                 Left(Label('Description:')),
                 Left(MinSize(70, 8, MultiLineEdit(Id('description'), Opt('disabled'), '', self.desc[self.selection]))),
                 Bottom(Right(HBox(
-                    buttons[self.dialog_seq],
+                    buttons[1] if len(self.obj['objs']) > 0 else buttons[0],
                 ))),
             )
         return [
@@ -1035,15 +1040,17 @@ class DNS:
                     self.__refresh(zone=zone)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'other_new_records':
-                obj = NewDialog('other', current_parent).Show()
-                if obj and obj['type'] == 'srv':
-                    msg = self.conn.add_record(current_zone, current_parent, '%s.%s' % (obj['service'], obj['protocol']), 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
-                    self.__refresh(zone=current_zone, top='%s.%s' % (obj['protocol'], current_parent), item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
-                    self.__message(msg, buttons=['ok'])
-                elif obj and obj['type'] == 'txt':
-                    msg = self.conn.add_record(current_zone, current_parent, obj['name'], 'TXT', obj['text'])
-                    self.__refresh(item=obj['name'], dns_type=dnsp.DNS_TYPE_TXT)
-                    self.__message(msg, buttons=['ok'])
+                objs = NewDialog('other', current_parent).Show()
+                if objs:
+                    for obj in objs['objs']:
+                        if obj['type'] == 'srv':
+                            msg = self.conn.add_record(current_zone, current_parent, '%s.%s' % (obj['service'], obj['protocol']), 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
+                            self.__refresh(zone=current_zone, top='%s.%s' % (obj['protocol'], current_parent), item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
+                            self.__message('%s.%s.%s: %s' % (obj['service'], obj['protocol'], current_parent, msg), buttons=['ok'])
+                        elif obj['type'] == 'txt':
+                            msg = self.conn.add_record(current_zone, current_parent, obj['name'], 'TXT', obj['text'])
+                            self.__refresh(item=obj['name'], dns_type=dnsp.DNS_TYPE_TXT)
+                            self.__message('%s.%s: %s' % (obj['name'], current_parent, msg), buttons=['ok'])
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 if zone == top and current_selection == zone: # Delete a zone
