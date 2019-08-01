@@ -15,7 +15,7 @@ import re
 from samba.dcerpc import dnsp
 from ipaddress import ip_address, IPv4Address, IPv6Address, ip_network
 from socket import getaddrinfo, gaierror
-from complex import dns_type_name
+from complex import dns_type_flag, dns_type_name
 
 class NameServer:
     def __init__(self, name='', ips=[]):
@@ -92,16 +92,7 @@ class NewDialog:
         if self.obj_type in ['cname', 'ptr', 'mx', 'srv', 'txt']:
             self.title = 'Resource Record'
             self.space = (0, 0)
-        if self.obj_type == 'cname':
-            self.subtitle = 'Alias (CNAME)'
-        elif self.obj_type == 'ptr':
-            self.subtitle = 'Pointer (PTR)'
-        elif self.obj_type == 'mx':
-            self.subtitle = 'Mail Exchanger (MX)'
-        elif self.obj_type == 'srv':
-            self.subtitle = 'Service Location (SRV)'
-        elif self.obj_type == 'txt':
-            self.subtitle = 'Text (TXT)'
+            self.subtitle = dns_type_name(dns_type_flag(self.obj_type))
         if self.obj_type == 'ns':
             self.title = 'Delegation Wizard'
         if self.obj_type == 'zone':
@@ -165,12 +156,9 @@ class NewDialog:
                     self.obj['objs'].append(obj)
                 UI.SetApplicationTitle('New Resource Record Type')
         def other_dialog():
-            items = [Item(Id('cname'), 'Alias (CNAME)', self.selection == 'cname'),
-                     Item(Id('host'), 'Host (A or AAAA)', self.selection == 'host'),
-                     Item(Id('mx'), 'Mail Exchanger (MX)', self.selection == 'mx'),
-                     Item(Id('ptr'), 'Pointer (PTR)', self.selection == 'ptr'),
-                     Item(Id('srv'), 'Service Location (SRV)', self.selection == 'srv'),
-                     Item(Id('txt'), 'Text (TXT)', self.selection == 'txt')]
+            items = [Item(Id('cname'), dns_type_name(dns_type_flag('cname')), self.selection == 'cname'),
+                     Item(Id('host'), 'Host (A or AAAA)', self.selection == 'host')]
+            items.extend([Item(Id(dns_type), dns_type_name(dns_type_flag(dns_type)), self.selection == dns_type) for dns_type in ['mx', 'ptr', 'srv', 'txt']])
             buttons = [HBox(
                            PushButton(Id('next'), 'Create Record...'),
                            PushButton(Id('cancel'), 'Cancel'),
