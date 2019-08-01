@@ -86,8 +86,19 @@ class NewDialog:
         self.obj_type = obj_type
         self.parent = parent
         self.title = None
+        self.subtitle = None
+        self.space = (3, 1)
         if self.obj_type in ['cname', 'ptr', 'mx', 'srv']:
             self.title = 'Resource Record'
+            self.space = (0, 0)
+        if self.obj_type == 'cname':
+            self.subtitle = 'Alias (CNAME)'
+        elif self.obj_type == 'ptr':
+            self.subtitle = 'Pointer (PTR)'
+        elif self.obj_type == 'mx':
+            self.subtitle = 'Mail Exchanger (MX)'
+        elif self.obj_type == 'srv':
+            self.subtitle = 'Service Location (SRV)'
         if self.obj_type == 'ns':
             self.title = 'Delegation Wizard'
         if self.obj_type == 'zone':
@@ -97,13 +108,23 @@ class NewDialog:
         self.dialog_seq = 0
         self.dialog = None
 
-    def __new(self):
-        pane = self.__fetch_pane()
-        return MinSize(56, 22, HBox(HSpacing(3), VBox(
+    def __subtitle(self, dialog):
+        if self.subtitle:
+            return DumbTab([self.subtitle], HBox(HSpacing(3), VBox(
                 VSpacing(1),
-                ReplacePoint(Id('new_pane'), pane),
+                dialog,
                 VSpacing(1),
             ), HSpacing(3)))
+        else:
+            return dialog
+
+    def __new(self):
+        pane = self.__fetch_pane()
+        return MinSize(56, 22, HBox(HSpacing(self.space[0]), VBox(
+                VSpacing(self.space[1]),
+                self.__subtitle(ReplacePoint(Id('new_pane'), pane)),
+                VSpacing(self.space[1]),
+            ), HSpacing(self.space[0])))
 
     def __fetch_pane(self):
         if not self.dialog:
