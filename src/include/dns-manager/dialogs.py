@@ -1153,11 +1153,21 @@ class DNS:
             items = [Item(Id('%s:' % zone), zone, '', '') for zone in self.conn.reverse_zones()]
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Status'), items)
 
-    def __flaten_data(self, data):
-        if type(data) == list or type(data) == tuple:
-            return ' '.join([self.__flaten_data(d) for d in data])
+    def __flaten_data(self, record):
+        if record['type'] in [dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_NS]:
+            return record['data']
+        elif record['type'] == dnsp.DNS_TYPE_MX:
+            return '[%d] %s' % (record['preference'], record['nameExchange'])
+        elif record['type'] == dnsp.DNS_TYPE_SRV:
+            return '[%d][%d][%d] %s' % (record['priority'], record['weight'], record['port'], record['nameTarget'])
+        elif record['type'] == dnsp.DNS_TYPE_TXT:
+            return ' '.join(record['data'])
+        elif record['type'] == dnsp.DNS_TYPE_SOA:
+            return '[%d], %s, %s' % (record['serial'], record['ns'], record['email'])
+        elif 'data' in record:
+            return str(record['data'])
         else:
-            return str(data)
+            return ''
 
     def __rightpane(self, records, parent):
         prepend = ''
@@ -1173,7 +1183,7 @@ class DNS:
         items = []
         for name in records.keys():
             if len(records[name]['records']) > 0:
-                items.extend([Item(Id('%s:%d' % (name, r['type'])), '%s%s' % (prepend if r['type'] == dnsp.DNS_TYPE_PTR else '', name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), self.__flaten_data(r['data']) if 'data' in r else '', '') for r in records[name]['records']])
+                items.extend([Item(Id('%s:%d' % (name, r['type'])), '%s%s' % (prepend if r['type'] == dnsp.DNS_TYPE_PTR else '', name) if name else '(same as parent folder)', self.__dns_type_name(r['type']), self.__flaten_data(r), '') for r in records[name]['records']])
             elif name:
                 items.append(Item(Id('%s:' % name), '%s' % name, '', '', ''))
         return Table(Id('items'), Opt('notify', 'immediate', 'notifyContextMenu'), Header('Name', 'Type', 'Data', 'Timestamp'), items)
