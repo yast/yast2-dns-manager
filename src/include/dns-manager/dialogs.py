@@ -172,7 +172,7 @@ class ObjDialog:
                 Left(Label('Select a resource record type:')),
                 Left(SelectionBox(Id('types'), Opt('notify', 'immediate'), '', items)),
                 Bottom(Right(HBox(
-                    buttons[1] if len(self.obj['objs']) > 0 else buttons[0],
+                    buttons[self.dialog_seq],
                 ))),
             )
         return [
