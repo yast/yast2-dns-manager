@@ -82,16 +82,28 @@ class NameServer:
         return result
 
 class ObjDialog:
-    def __init__(self, obj_type, parent):
-        self.obj = {}
-        self.obj_type = obj_type
+    def __init__(self, obj_type, parent, name=None, record=None):
+        self.obj_type = obj_type.lower()
+        if record and name is not None:
+            self.update = True
+            self.obj = self.__fetch_record(record)
+            self.obj['name'] = name
+        else:
+            self.update = False
+            self.obj = {}
         self.parent = parent
         self.title = None
         self.subtitle = None
         self.space = (3, 1)
+        if self.obj_type in ['a', 'aaaa']:
+            self.subtitle = dns_type_name(dns_type_flag(self.obj_type))
+            self.obj_type = 'host'
+        if self.obj_type == 'ns' and self.update:
+            self.subtitle = 'Name Servers'
+        if self.obj_type == 'host':
+            self.title = 'Host'
         if self.obj_type in ['cname', 'ptr', 'mx', 'srv', 'txt']:
             self.title = 'Resource Record'
-            self.space = (0, 0)
             self.subtitle = dns_type_name(dns_type_flag(self.obj_type))
             self.obj['type'] = dns_type_flag(obj_type)
         if self.obj_type == 'ns':
@@ -102,6 +114,25 @@ class ObjDialog:
             self.title = 'Resource Record Type'
         self.dialog_seq = 0
         self.dialog = None
+
+    def __fetch_record(self, data):
+        obj_type = dns_type_flag(self.obj_type)
+        if obj_type == dnsp.DNS_TYPE_NS:
+            ret = {'data' : []}
+            for record in data['records']:
+                if obj_type == record['type']:
+                    ips = []
+                    try:
+                        resp = getaddrinfo(record['data'], None)
+                    except gaierror as e:
+                        resp = None
+                    if resp:
+                        ips = list(set([r[-1][0] for r in resp]))
+                    ret['data'].append((record['data'], ips))
+            return ret
+        for record in data['records']:
+            if obj_type == record['type']:
+                return record
 
     def __subtitle(self, dialog):
         if self.subtitle:
@@ -114,6 +145,8 @@ class ObjDialog:
             return dialog
 
     def __new(self):
+        if self.subtitle:
+            self.space = (0, 0)
         pane = self.__fetch_pane()
         return MinSize(56, 22, HBox(HSpacing(self.space[0]), VBox(
                 VSpacing(self.space[1]),
@@ -131,19 +164,100 @@ class ObjDialog:
                 self.dialog = self.__ptr_dialog()
             elif strcmp(self.obj_type, 'mx'):
                 self.dialog = self.__mx_dialog()
-            elif strcmp(self.obj_type, 'ns'):
+            elif strcmp(self.obj_type, 'ns') and not self.update:
                 self.dialog = self.__ns_dialog()
+            elif strcmp(self.obj_type, 'ns') and self.update:
+                self.dialog = self.__ns_properties_dialog()
             elif strcmp(self.obj_type, 'zone'):
                 self.dialog = self.__zone_dialog()
             elif strcmp(self.obj_type, 'srv'):
                 self.dialog = self.__srv_dialog()
             elif strcmp(self.obj_type, 'txt'):
                 self.dialog = self.__txt_dialog()
-            else:
+            elif not self.update:
                 self.dialog = self.__other_dialog()
+            else:
+                self.dialog = self.__other_properties_dialog()
         if len(self.dialog)-1 < self.dialog_seq:
             self.dialog_seq -= 1
         return self.dialog[self.dialog_seq][0]() if callable(self.dialog[self.dialog_seq][0]) else self.dialog[self.dialog_seq][0]
+
+    def __ns_properties_dialog(self):
+        def name_servers_hook(ret):
+            if 'data' not in self.obj:
+                self.obj['data'] = []
+            if ret == 'add':
+                server = NameServer().Show()
+                if server:
+                    self.obj['data'].append(server)
+                    items = [Item(Id(server[0]), server[0], ' '.join(['[%s*]' % ip for ip in server[1]])) for server in self.obj['data']]
+                    UI.ChangeWidget('items', 'Items', items)
+            elif ret == 'edit':
+                selection = UI.QueryWidget('items', 'CurrentItem')
+                found = None
+                for server in self.obj['data']:
+                    if server[0] == selection:
+                        found = server
+                        break
+                server = None
+                if found:
+                    server = NameServer(found[0], found[1]).Show()
+                if server:
+                    self.obj['data'] = [s for s in self.obj['data'] if s[0] != selection]
+                    self.obj['data'].append(server)
+                    items = [Item(Id(server[0]), server[0], ' '.join(['[%s*]' % ip for ip in server[1]])) for server in self.obj['data']]
+                    UI.ChangeWidget('items', 'Items', items)
+            elif ret == 'remove':
+                selection = UI.QueryWidget('items', 'CurrentItem')
+                if selection:
+                    self.obj['data'] = [s for s in self.obj['data'] if s[0] != selection]
+                    items = [Item(Id(server[0]), server[0], ' '.join(['[%s*]' % ip for ip in server[1]])) for server in self.obj['data']]
+                    UI.ChangeWidget('items', 'Items', items)
+        items = [Item(Id(server[0]), server[0], ' '.join(['[%s*]' % ip for ip in server[1]])) for server in self.obj['data']]
+        return [
+            [VBox(
+                Left(Label('To add name servers to the list, click Add.')),
+                VSpacing(1),
+                Left(Label('Name servers:')),
+                Table(Id('items'), Header('Server Fully Qualified Domain Name (FQDN)', 'IP Address'), items),
+                Left(HBox(
+                    PushButton(Id('add'), 'Add...'),
+                    PushButton(Id('edit'), 'Edit...'),
+                    PushButton(Id('remove'), 'Remove'),
+                )),
+                Left(Label('* represents an IP address retrieved as the result of a DNS query and may\nnot represent actual records stored on this server.')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel'),
+                ))),
+            ),
+            [], # known keys
+            [], # required keys
+            name_servers_hook, # dialog hook
+            ],
+        ]
+
+    def __other_properties_dialog(self):
+        name_keys = {k: ' '.join(re.split('([A-Z][a-z]*)', k)).strip().capitalize() for k in self.obj.keys() if k not in ['flags', 'type']}
+        items = []
+        for k in name_keys.keys():
+            if type(self.obj[k]) == int:
+                items.append(Left(IntField(Id(k), Opt('disabled', 'hstretch'), name_keys[k], 0, 99999, self.obj[k])))
+            else:
+                items.append(Left(TextEntry(Id(k), Opt('disabled', 'hstretch'), name_keys[k], self.obj[k])))
+        return [
+            [VBox(
+                *items,
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), Opt('disabled'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel'),
+                ))),
+            ),
+            list(name_keys.keys()), # known keys
+            list(name_keys.keys()), # required keys
+            None, # dialog hook
+            ],
+        ]
 
     def __other_dialog(self):
         self.obj['objs'] = []
@@ -195,11 +309,11 @@ class ObjDialog:
         return [
             [VBox(
                 Left(Label('Record name (uses parent domain if left blank):')),
-                Left(TextEntry(Id('name'), Opt('notify', 'hstretch'), '')),
+                Left(TextEntry(Id('name'), Opt('disabled') if self.update else Opt('notify', 'hstretch'), self.obj['name'] if self.update else '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
-                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
                 Left(Label(Id('text_label'), 'Text:')),
-                Left(TextEntry(Id('text'), ''),
+                Left(TextEntry(Id('text'), '', ' '.join(self.obj['data']) if self.update else '')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
@@ -212,10 +326,10 @@ class ObjDialog:
         ]
 
     def __srv_dialog(self):
-        service_items = ['', '_finger', '_ftp', '_http', '_kerberos', '_ldap', '_msdcs', '_nntp', '_telnet', '_whois']
+        service_items = [self.obj['name']] if self.update else ['', '_finger', '_ftp', '_http', '_kerberos', '_ldap', '_msdcs', '_nntp', '_telnet', '_whois']
         def srv_hook(ret):
-            if ret == 'service':
-                selection = UI.QueryWidget('service', 'Value')
+            if ret == 'name':
+                selection = UI.QueryWidget('name', 'Value')
                 if selection == '_finger':
                     UI.ChangeWidget('port', 'Value', 79)
                     UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
@@ -240,6 +354,8 @@ class ObjDialog:
                 elif selection == '_whois':
                     UI.ChangeWidget('port', 'Value', 43)
                     UI.ChangeWidget('protocol', 'Items', ['_tcp'])
+        disable_opt = ('disabled',) if self.update else tuple()
+        protocols = [self.parent.split('.')[0]] if self.update else ['_tcp', '_udp']
         return [
             [VBox(
                 HBox(
@@ -253,23 +369,23 @@ class ObjDialog:
                     )),
                     HWeight(3, VBox(
                         Left(TextEntry(Opt('disabled', 'hstretch'), '', self.parent)),
-                        Left(ComboBox(Id('service'), Opt('editable', 'notify', 'hstretch'), '', service_items)),
-                        Left(ComboBox(Id('protocol'), Opt('editable', 'hstretch'), '', ['_tcp', '_udp'])),
-                        Left(IntField(Id('priority'), Opt('hstretch'), '', 0, 99999, 0)),
-                        Left(IntField(Id('weight'), Opt('hstretch'), '', 0, 99999, 0)),
-                        Left(IntField(Id('port'), Opt('hstretch'), '', 1, 65535, 1)),
+                        Left(ComboBox(Id('name'), Opt('editable', 'notify', 'hstretch', *disable_opt), '', service_items)),
+                        Left(ComboBox(Id('protocol'), Opt('editable', 'hstretch', *disable_opt), '', protocols)),
+                        Left(IntField(Id('priority'), Opt('hstretch'), '', 0, 99999, self.obj['priority'] if self.update else 0)),
+                        Left(IntField(Id('weight'), Opt('hstretch'), '', 0, 99999, self.obj['weight'] if self.update else 0)),
+                        Left(IntField(Id('port'), Opt('hstretch'), '', 1, 65535, self.obj['port'] if self.update else 1)),
                     )),
                 ),
                 Left(Label(Id('nameTarget_label'), 'Host offering this service:')),
-                Left(TextEntry(Id('nameTarget'), Opt('hstretch'), '')),
-                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
+                Left(TextEntry(Id('nameTarget'), Opt('hstretch'), '', self.obj['nameTarget'] if self.update else '')),
+                Empty() if self.update else Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
                 ))),
             ),
-            ['service', 'protocol', 'priority', 'weight', 'port', 'nameTarget'], # known keys
-            ['service', 'protocol', 'priority', 'weight', 'port', 'nameTarget'], # required keys
+            ['name', 'protocol', 'priority', 'weight', 'port', 'nameTarget'], # known keys
+            ['name', 'protocol', 'priority', 'weight', 'port', 'nameTarget'], # required keys
             srv_hook, # dialog hook
             ],
         ]
@@ -471,35 +587,38 @@ class ObjDialog:
         def fqdn_hook(ret):
             name = UI.QueryWidget('name', 'Value')
             UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+        disable_opt = ('disabled',) if self.update else tuple()
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Host or child domain:')),
-                Left(TextEntry(Id('name'), Opt('notify'), '')),
+                Left(TextEntry(Id('name'), Opt('notify', *disable_opt), '', self.obj['name'] if self.update else '')),
                 Left(Label('By default, DNS uses the parent domain name when creating a Mail\nExchange record. You can specify a host or child name, but in most\ndeployments, the above field is left blank.')),
                 Left(Label('Fully qualified domain name (FQDN):')),
-                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
-                Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) of mail server:')),
-                Left(TextEntry(Id('data'), '')),
-                Left(Label(Id('priority_label'), 'Mail server priority:')),
-                Left(TextEntry(Id('priority'), '', '10')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
+                Left(Label(Id('nameExchange_label'), 'Fully qualified domain name (FQDN) of mail server:')),
+                Left(TextEntry(Id('nameExchange'), '', self.obj['nameExchange'] if self.update else '')),
+                Left(Label(Id('preference_label'), 'Mail server priority:')),
+                Left(IntField(Id('preference'), '', 0, 99999, self.obj['preference'] if self.update else 10)),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
                 ))),
             ),
-            ['name', 'data', 'priority'], # known keys
-            ['name', 'data', 'priority'], # required keys
+            ['name', 'nameExchange', 'preference'], # known keys
+            ['name', 'nameExchange', 'preference'], # required keys
             fqdn_hook, # dialog hook
             ],
         ]
 
     def __ptr_dialog(self):
+        def fqdn(name):
+            if re.match('[\d+\.]+in\-addr\.arpa', self.parent):
+                return '%s.%s' % ('.'.join(reversed(name.split('.'))), self.parent)
+            elif re.match('[\w+\.]+ip6\.arpa', self.parent):
+                return '%s.%s' % ('.'.join(reversed(''.join(name.split(':')))), self.parent)
         def fqdn_hook(ret):
             name = UI.QueryWidget('name', 'Value')
-            if re.match('[\d+\.]+in\-addr\.arpa', self.parent):
-                UI.ChangeWidget('fqdn', 'Value', '%s.%s' % ('.'.join(reversed(name.split('.'))), self.parent))
-            elif re.match('[\w+\.]+ip6\.arpa', self.parent):
-                UI.ChangeWidget('fqdn', 'Value', '%s.%s' % ('.'.join(reversed(''.join(name.split(':')))), self.parent))
+            UI.ChangeWidget('fqdn', 'Value', fqdn(name))
         name = ''
         m = re.match('([\d+\.]+)(in\-addr)\.arpa', self.parent)
         if not m:
@@ -507,21 +626,23 @@ class ObjDialog:
         if m:
             if m.group(2) == 'in-addr':
                 name = '%s.' % '.'.join(reversed(m.group(1)[:-1].split('.')))
+                name = ('%s%s' % (name, self.obj['name'])) if self.update else name
             else: # ip6
                 rev = ''.join(reversed(m.group(1)[:-1].split('.')))
                 name = '%s:' % ':'.join([rev[x-4:x] for x in range(4, len(rev)+4, 4)])
+                name = ('%s%s' % (name, self.obj['name'])) if self.update else name
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Host IP Address:')),
                 HBox(
-                    HWeight(1, Left(TextEntry(Opt('disabled'), '', name))),
-                    HWeight(2, Left(TextEntry(Id('name'), Opt('notify'), ''))),
+                    HWeight(1, Left(TextEntry(Id('ip'), Opt('disabled'), '', name))),
+                    Empty() if self.update else HWeight(2, Left(TextEntry(Id('name'), Opt('notify'), ''))),
                 ),
                 Left(Label('Fully qualified domain name (FQDN):')),
-                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', fqdn(self.obj['name']) if self.update else self.parent)),
                 Left(Label(Id('data_label'), 'Host name:')),
-                Left(TextEntry(Id('data'), '')),
-                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
+                Left(TextEntry(Id('data'), '', self.obj['data'] if self.update else '')),
+                Empty() if self.update else Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
@@ -529,7 +650,7 @@ class ObjDialog:
             ),
             ['name', 'data', 'allow_update'], # known keys
             ['name', 'data'], # required keys
-            fqdn_hook, # dialog hook
+            None if self.update else fqdn_hook, # dialog hook
             ],
         ]
 
@@ -540,12 +661,12 @@ class ObjDialog:
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Alias name (uses parent domain if left blank):')),
-                Left(TextEntry(Id('name'), Opt('notify'), '')),
+                Left(TextEntry(Id('name'), Opt('disabled') if self.update else Opt('notify'), '', self.obj['name'] if self.update else '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
-                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
                 Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) for target host:')),
-                Left(TextEntry(Id('data'), '')),
-                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
+                Left(TextEntry(Id('data'), '', self.obj['data'] if self.update else '')),
+                Empty() if self.update else Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update all DNS records with the same\nname. This setting applies only to DNS records for a new name.')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
@@ -575,15 +696,15 @@ class ObjDialog:
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Name (uses parent domain name if blank):')),
-                Left(TextEntry(Id('name'), Opt('notify'), '')),
+                Left(TextEntry(Id('name'), Opt('disabled') if self.update else Opt('notify'), '', self.obj['name'] if self.update else '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
-                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
                 Left(Label(Id('data_label'), 'IP address:')),
-                Left(TextEntry(Id('data'), Opt('notify'), '')),
-                Left(CheckBox(Id('create_ptr'), 'Create associated pointer (PTR) record')),
-                Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update DNS records with the\nsame owner name')),
+                Left(TextEntry(Id('data'), Opt('notify'), '', self.obj['data'] if self.update else '')),
+                Left(CheckBox(Id('create_ptr'), '%s associated pointer (PTR) record' % 'Update' if self.update else 'Create')),
+                Empty() if self.update else Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update DNS records with the\nsame owner name')),
                 Bottom(Right(HBox(
-                    PushButton(Id('finish'), 'Add %s' % self.obj_type.capitalize()),
+                    PushButton(Id('finish'), 'OK' if self.update else 'Add %s' % self.obj_type.capitalize()),
                     PushButton(Id('cancel'), 'Cancel')
                 ))),
             ),
@@ -626,154 +747,11 @@ class ObjDialog:
             hook(ret)
 
     def Show(self):
-        UI.SetApplicationTitle('New %s' % (self.title if self.title else self.obj_type.title()))
+        UI.SetApplicationTitle(('%s Properties' % self.obj['name']) if self.update else 'New %s' % self.title)
         UI.OpenDialog(self.__new())
         ret = None
         while True:
             self.__dialog_hook(ret)
-            ret = UI.UserInput()
-            if str(ret) == 'abort' or str(ret) == 'cancel':
-                ret = None
-                break
-            elif str(ret) == 'next':
-                if self.__fetch_values():
-                    self.dialog_seq += 1
-                    UI.ReplaceWidget('new_pane', self.__fetch_pane())
-                    self.__set_values()
-            elif str(ret) == 'back':
-                self.__fetch_values(True)
-                self.dialog_seq -= 1;
-                UI.ReplaceWidget('new_pane', self.__fetch_pane())
-                self.__set_values()
-            elif str(ret) == 'finish':
-                if self.__fetch_values():
-                    ret = self.obj
-                    break
-        UI.CloseDialog()
-        return ret
-
-class PropertiesDialog:
-    def __init__(self, obj_type, name, data):
-        self.obj_type = obj_type
-        self.name = name
-        self.data = self.__fetch_record(data)
-        self.dialog_seq = 0
-        self.dialog = None
-
-    def __fetch_record(self, data):
-        for record in data['records']:
-            if self.obj_type == record['type']:
-                return record
-
-    def __new(self):
-        pane = self.__fetch_pane()
-        return MinSize(56, 22, HBox(HSpacing(3), VBox(
-                VSpacing(1),
-                ReplacePoint(Id('new_pane'), pane),
-                VSpacing(1),
-            ), HSpacing(3)))
-
-    def __fetch_pane(self):
-        if not self.dialog:
-            if self.obj_type == dnsp.DNS_TYPE_SRV:
-                self.dialog = self.__srv_dialog()
-            else:
-                self.dialog = self.__other_dialog()
-        return self.dialog[self.dialog_seq][0]
-
-    def __other_dialog(self):
-        name_keys = {k: ' '.join(re.split('([A-Z][a-z]*)', k)).strip().capitalize() for k in self.data.keys() if k not in ['flags', 'type']}
-        items = []
-        for k in name_keys.keys():
-            if type(self.data[k]) == int:
-                items.append(Left(IntField(Id(k), Opt('hstretch'), name_keys[k], 0, 99999, self.data[k])))
-            else:
-                items.append(Left(TextEntry(Id(k), Opt('hstretch'), name_keys[k], self.data[k])))
-        return [
-            [VBox(
-                *items,
-                Bottom(Right(HBox(
-                    PushButton(Id('finish'), Opt('disabled'), 'OK'),
-                    PushButton(Id('cancel'), 'Cancel'),
-                ))),
-            ),
-            list(name_keys.keys()), # known keys
-            list(name_keys.keys()), # required keys
-            None, # dialog hook
-            ],
-        ]
-
-    def __srv_dialog(self):
-        return [
-            [VBox(
-                HBox(
-                    HWeight(1, VBox(
-                        Left(Label('Domain:')),
-                        Left(Label('Service:')),
-                        Left(Label('Protocol:')),
-                        Left(Label(Id('priority_label'), 'Priority:')),
-                        Left(Label(Id('weight_label'), 'Weight:')),
-                        Left(Label(Id('port_label'), 'Port number:')),
-                    )),
-                    HWeight(3, VBox(
-                        Left(TextEntry(Opt('disabled', 'hstretch'), '', '.'.join(self.name.split('.')[1:]))),
-                        Left(ComboBox(Opt('disabled', 'hstretch'), '', [self.name.split('.')[0]])),
-                        Left(ComboBox(Opt('disabled', 'hstretch'), '', [])),
-                        Left(IntField(Id('priority'), Opt('hstretch'), '', 0, 99999, self.data['priority'])),
-                        Left(IntField(Id('weight'), Opt('hstretch'), '', 0, 99999, self.data['weight'])),
-                        Left(IntField(Id('port'), Opt('hstretch'), '', 1, 65535, self.data['port'])),
-                    )),
-                ),
-                Left(Label(Id('nameTarget_label'), 'Host offering this service:')),
-                Left(TextEntry(Id('nameTarget'), Opt('hstretch'), '', self.data['nameTarget'])),
-                Bottom(Right(HBox(
-                    PushButton(Id('finish'), 'OK'),
-                    PushButton(Id('cancel'), 'Cancel'),
-                ))),
-            ),
-            ['nameTarget', 'priority', 'weight', 'port'], # known keys
-            ['nameTarget', 'priority', 'weight', 'port'], # required keys
-            None, # dialog hook
-            ],
-        ]
-
-    def __warn_label(self, key):
-        label = UI.QueryWidget('%s_label' % key, 'Value')
-        if not label:
-            label = UI.QueryWidget(key, 'Label')
-        if label[-2:] != ' *':
-            if not UI.ChangeWidget('%s_label' % key, 'Value', '%s *' % label):
-                UI.ChangeWidget(key, 'Label', '%s *' % label)
-
-    def __fetch_values(self, back=False):
-        ret = True
-        known_value_keys = self.dialog[self.dialog_seq][1]
-        for key in known_value_keys:
-            value = UI.QueryWidget(key, 'Value')
-            if value or type(value) == bool:
-                self.obj[key] = value
-        required_value_keys = self.dialog[self.dialog_seq][2]
-        for key in required_value_keys:
-            if not key in self.obj or not self.obj[key]:
-                self.__warn_label(key)
-                ycpbuiltins.y2error('Missing value for %s' % key)
-                ret = False
-        return ret
-
-    def __set_values(self):
-        for key in self.obj:
-            UI.ChangeWidget(key, 'Value', self.obj[key])
-
-    def __dialog_hook(self):
-        hook = self.dialog[self.dialog_seq][3]
-        if hook:
-            hook()
-
-    def Show(self):
-        UI.SetApplicationTitle('%s Properties' % self.name.split('.')[0])
-        UI.OpenDialog(self.__new())
-        while True:
-            self.__dialog_hook()
             ret = UI.UserInput()
             if str(ret) == 'abort' or str(ret) == 'cancel':
                 ret = None
@@ -968,13 +946,13 @@ class DNS:
                     self.__setup_menus(mtype='folder')
                 elif record:
                     if event['EventReason'] == 'Activated':
-                        PropertiesDialog(int(dns_type), nchoice, record).Show()
+                        obj = ObjDialog(dns_type_name(int(dns_type), short=True), top, choice, record).Show()
                     self.__setup_menus(mtype='object')
             elif ret == 'properties':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 record = self.conn.records(zone, current_selection)['']
                 if record:
-                    PropertiesDialog(int(current_dns_type), current_selection, record).Show()
+                    obj = ObjDialog(dns_type_name(int(current_dns_type), short=True), top, current_selection.split(top)[0], record).Show()
             elif ret == 'new_host':
                 host = ObjDialog('host', current_parent).Show()
                 if host:
@@ -1041,8 +1019,8 @@ class DNS:
     def __add_record(self, zone, parent, record):
         msg = None
         if record['type'] == dnsp.DNS_TYPE_SRV:
-            msg = self.conn.add_record(zone, parent, '%s.%s' % (record['service'], record['protocol']), 'SRV', '%s %d %d %d' % (record['nameTarget'], record['port'], record['priority'], record['weight']))
-            self.__refresh(zone=zone, top='%s.%s' % (record['protocol'], parent), item=record['service'], dns_type=dnsp.DNS_TYPE_SRV)
+            msg = self.conn.add_record(zone, parent, '%s.%s' % (record['name'], record['protocol']), 'SRV', '%s %d %d %d' % (record['nameTarget'], record['port'], record['priority'], record['weight']))
+            self.__refresh(zone=zone, top='%s.%s' % (record['protocol'], parent), item=record['name'], dns_type=dnsp.DNS_TYPE_SRV)
         elif record['type'] == dnsp.DNS_TYPE_TXT:
             msg = self.conn.add_record(zone, parent, record['name'], 'TXT', record['text'])
             self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_TXT)
@@ -1053,7 +1031,7 @@ class DNS:
             msg = self.conn.add_record(zone, parent, record['name'], 'PTR', record['data'])
             self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_PTR)
         elif record['type'] == dnsp.DNS_TYPE_MX:
-            msg = self.conn.add_record(zone, parent, record['name'], 'MX', '%s %s' % (record['data'], record['priority']))
+            msg = self.conn.add_record(zone, parent, record['name'], 'MX', '%s %s' % (record['nameExchange'], record['preference']))
             self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_MX)
         elif record['type'] == dnsp.DNS_TYPE_A:
             msg2 = None
