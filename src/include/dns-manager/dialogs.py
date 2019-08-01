@@ -83,7 +83,7 @@ class NameServer:
 
 class ObjDialog:
     def __init__(self, obj_type, parent):
-        self.obj = {'type' : obj_type}
+        self.obj = {}
         self.obj_type = obj_type
         self.parent = parent
         self.title = None
@@ -93,6 +93,7 @@ class ObjDialog:
             self.title = 'Resource Record'
             self.space = (0, 0)
             self.subtitle = dns_type_name(dns_type_flag(self.obj_type))
+            self.obj['type'] = dns_type_flag(obj_type)
         if self.obj_type == 'ns':
             self.title = 'Delegation Wizard'
         if self.obj_type == 'zone':
@@ -558,8 +559,18 @@ class ObjDialog:
 
     def __host_dialog(self):
         def fqdn_hook(ret):
-            name = UI.QueryWidget('name', 'Value')
-            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+            if ret == 'name':
+                name = UI.QueryWidget('name', 'Value')
+                UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+            elif ret == 'data':
+                try:
+                    ipvers = ip_address(UI.QueryWidget('data', 'Value'))
+                    if type(ipvers) == IPv4Address:
+                        self.obj['type'] = dnsp.DNS_TYPE_A
+                    elif type(ipvers) == IPv6Address:
+                        self.obj['type'] = dnsp.DNS_TYPE_AAAA
+                except ValueError:
+                    self.obj['type'] = None
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Name (uses parent domain name if blank):')),
@@ -567,7 +578,7 @@ class ObjDialog:
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Left(Label(Id('data_label'), 'IP address:')),
-                Left(TextEntry(Id('data'), '')),
+                Left(TextEntry(Id('data'), Opt('notify'), '')),
                 Left(CheckBox(Id('create_ptr'), 'Create associated pointer (PTR) record')),
                 Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update DNS records with the\nsame owner name')),
                 Bottom(Right(HBox(
@@ -1030,11 +1041,11 @@ class DNS:
                 objs = ObjDialog('other', current_parent).Show()
                 if objs:
                     for obj in objs['objs']:
-                        if obj['type'] == 'srv':
+                        if obj['type'] == dnsp.DNS_TYPE_SRV:
                             msg = self.conn.add_record(current_zone, current_parent, '%s.%s' % (obj['service'], obj['protocol']), 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
                             self.__refresh(zone=current_zone, top='%s.%s' % (obj['protocol'], current_parent), item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
                             self.__message('%s.%s.%s: %s' % (obj['service'], obj['protocol'], current_parent, msg), buttons=['ok'])
-                        elif obj['type'] == 'txt':
+                        elif obj['type'] == dnsp.DNS_TYPE_TXT:
                             msg = self.conn.add_record(current_zone, current_parent, obj['name'], 'TXT', obj['text'])
                             self.__refresh(item=obj['name'], dns_type=dnsp.DNS_TYPE_TXT)
                             self.__message('%s.%s: %s' % (obj['name'], current_parent, msg), buttons=['ok'])
