@@ -869,6 +869,8 @@ class DNS:
             menus.append({'title': 'Other New Records...', 'id': 'other_new_records', 'type': 'MenuEntry', 'parent': 'action'})
         if mtype and mtype in ['object', 'fzone', 'rzone']:
             menus.append({'title': 'Delete', 'id': 'delete', 'type': 'MenuEntry', 'parent': 'action'})
+        if mtype and mtype in ['zones', 'fzone', 'rzone', 'folder']:
+            menus.append({'title': 'Refresh', 'id': 'refresh', 'type': 'MenuEntry', 'parent': 'action'})
         if mtype and mtype == 'object':
             menus.append({'title': 'Properties', 'id': 'properties', 'type': 'MenuEntry', 'parent': 'action'})
         CreateMenu(menus)
@@ -1036,6 +1038,8 @@ class DNS:
                         self.__refresh()
                     else:
                         self.__message('Deleting record of type %s is not supported' % self.__dns_type_name(int(dns_type)), buttons=['ok'])
+            elif ret == 'refresh':
+                self.__refresh()
             UI.SetApplicationTitle('DNS Manager')
         return Symbol(ret)
 
