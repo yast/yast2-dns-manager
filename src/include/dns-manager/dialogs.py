@@ -177,20 +177,28 @@ class NewDialog:
                 selection = UI.QueryWidget('service', 'Value')
                 if selection == '_finger':
                     UI.ChangeWidget('port', 'Value', 79)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection == '_ftp':
                     UI.ChangeWidget('port', 'Value', 21)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection == '_http':
                     UI.ChangeWidget('port', 'Value', 80)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection == '_kerberos':
                     UI.ChangeWidget('port', 'Value', 88)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection in ['_ldap', '_msdcs']:
                     UI.ChangeWidget('port', 'Value', 389)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection == '_nntp':
                     UI.ChangeWidget('port', 'Value', 119)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection == '_telnet':
                     UI.ChangeWidget('port', 'Value', 23)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp', '_udp'])
                 elif selection == '_whois':
                     UI.ChangeWidget('port', 'Value', 43)
+                    UI.ChangeWidget('protocol', 'Items', ['_tcp'])
         return [
             [VBox(
                 HBox(
@@ -205,7 +213,7 @@ class NewDialog:
                     HWeight(3, VBox(
                         Left(TextEntry(Opt('disabled', 'hstretch'), '', self.parent)),
                         Left(ComboBox(Id('service'), Opt('editable', 'notify', 'hstretch'), '', service_items)),
-                        Left(ComboBox(Opt('disabled', 'hstretch'), '', ['_tcp'])),
+                        Left(ComboBox(Id('protocol'), Opt('editable', 'hstretch'), '', ['_tcp', '_udp'])),
                         Left(IntField(Id('priority'), Opt('hstretch'), '', 0, 99999, 0)),
                         Left(IntField(Id('weight'), Opt('hstretch'), '', 0, 99999, 0)),
                         Left(IntField(Id('port'), Opt('hstretch'), '', 1, 65535, 1)),
@@ -219,8 +227,8 @@ class NewDialog:
                     PushButton(Id('cancel'), 'Cancel')
                 ))),
             ),
-            ['service', 'priority', 'weight', 'port', 'nameTarget'], # known keys
-            ['service', 'priority', 'weight', 'port', 'nameTarget'], # required keys
+            ['service', 'protocol', 'priority', 'weight', 'port', 'nameTarget'], # known keys
+            ['service', 'protocol', 'priority', 'weight', 'port', 'nameTarget'], # required keys
             srv_hook, # dialog hook
             ],
         ]
@@ -979,8 +987,8 @@ class DNS:
             elif ret == 'other_new_records':
                 obj = NewDialog('other', current_parent).Show()
                 if obj and obj['type'] == 'srv':
-                    msg = self.conn.add_record(current_zone, current_parent, obj['service'], 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
-                    self.__refresh(item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
+                    msg = self.conn.add_record(current_zone, current_parent, '%s.%s' % (obj['service'], obj['protocol']), 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
+                    self.__refresh(zone=current_zone, top='%s.%s' % (obj['protocol'], current_parent), item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
