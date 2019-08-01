@@ -154,21 +154,20 @@ class NewDialog:
 
     def __other_dialog(self):
         self.obj['objs'] = []
-        self.selection = 'srv'
-        self.desc = {'srv' : 'Service (SRV) record. Allows administrators to use several servers\nfor a single DNS domain, to easily move a TCP/IP service from one\nhost to another host with administration, and to designate some\nservice provider hosts as primary servers for a service and other\nhosts as backups. DNS clients that use a SRV-type query ask for a\nspecific TCP/IP service and protocol mapped  to a specific DNS\ndomain and receive the names of any available servers. (RFC 2052)', 'txt' : 'Text (TXT) record. Holds a string of characters that serves as\ndescriptive text to be associated with a specific DNS domain name.\nThe semantics of the actual descriptive text used as data with this\nrecord type depends on the DNS domain where these records are\nlocated. (RFC 1035)'}
+        self.selection = 'cname'
         def selection_hook(ret):
             if ret == 'types':
                 self.selection = UI.QueryWidget('types', 'CurrentItem')
-                if self.selection == 'srv':
-                    UI.ChangeWidget('description', 'Value', self.desc['srv'])
-                elif self.selection == 'txt':
-                    UI.ChangeWidget('description', 'Value', self.desc['txt'])
             elif ret == 'next':
                 obj = NewDialog(self.selection, self.parent).Show()
                 if obj:
                     self.obj['objs'].append(obj)
         def other_dialog():
-            items = [Item(Id('srv'), 'Service Location (SRV)', self.selection == 'srv'),
+            items = [Item(Id('cname'), 'Alias (CNAME)', self.selection == 'cname'),
+                     Item(Id('host'), 'Host (A or AAAA)', self.selection == 'host'),
+                     Item(Id('mx'), 'Mail Exchanger (MX)', self.selection == 'mx'),
+                     Item(Id('ptr'), 'Pointer (PTR)', self.selection == 'ptr'),
+                     Item(Id('srv'), 'Service Location (SRV)', self.selection == 'srv'),
                      Item(Id('txt'), 'Text (TXT)', self.selection == 'txt')]
             buttons = [HBox(
                            PushButton(Id('next'), 'Create Record...'),
@@ -181,8 +180,6 @@ class NewDialog:
             return VBox(
                 Left(Label('Select a resource record type:')),
                 Left(SelectionBox(Id('types'), Opt('notify', 'immediate'), '', items)),
-                Left(Label('Description:')),
-                Left(MinSize(70, 8, MultiLineEdit(Id('description'), Opt('disabled'), '', self.desc[self.selection]))),
                 Bottom(Right(HBox(
                     buttons[1] if len(self.obj['objs']) > 0 else buttons[0],
                 ))),
