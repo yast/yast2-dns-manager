@@ -162,6 +162,7 @@ class NewDialog:
                 obj = NewDialog(self.selection, self.parent).Show()
                 if obj:
                     self.obj['objs'].append(obj)
+                UI.SetApplicationTitle('New Resource Record Type')
         def other_dialog():
             items = [Item(Id('cname'), 'Alias (CNAME)', self.selection == 'cname'),
                      Item(Id('host'), 'Host (A or AAAA)', self.selection == 'host'),
