@@ -88,7 +88,7 @@ class NewDialog:
         self.title = None
         self.subtitle = None
         self.space = (3, 1)
-        if self.obj_type in ['cname', 'ptr', 'mx', 'srv']:
+        if self.obj_type in ['cname', 'ptr', 'mx', 'srv', 'txt']:
             self.title = 'Resource Record'
             self.space = (0, 0)
         if self.obj_type == 'cname':
@@ -99,6 +99,8 @@ class NewDialog:
             self.subtitle = 'Mail Exchanger (MX)'
         elif self.obj_type == 'srv':
             self.subtitle = 'Service Location (SRV)'
+        elif self.obj_type == 'txt':
+            self.subtitle = 'Text (TXT)'
         if self.obj_type == 'ns':
             self.title = 'Delegation Wizard'
         if self.obj_type == 'zone':
@@ -142,6 +144,8 @@ class NewDialog:
                 self.dialog = self.__zone_dialog()
             elif strcmp(self.obj_type, 'srv'):
                 self.dialog = self.__srv_dialog()
+            elif strcmp(self.obj_type, 'txt'):
+                self.dialog = self.__txt_dialog()
             else:
                 self.dialog = self.__other_dialog()
         return self.dialog[self.dialog_seq][0]() if callable(self.dialog[self.dialog_seq][0]) else self.dialog[self.dialog_seq][0]
@@ -188,6 +192,29 @@ class NewDialog:
             [], # known keys
             [], # required keys
             selection_hook, # dialog hook
+            ],
+        ]
+
+    def __txt_dialog(self):
+        def fqdn_hook(ret):
+            name = UI.QueryWidget('name', 'Value')
+            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+        return [
+            [VBox(
+                Left(Label('Record name (uses parent domain if left blank):')),
+                Left(TextEntry(Id('name'), Opt('notify', 'hstretch'), '')),
+                Left(Label('Fully qualified domain name (FQDN):')),
+                Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
+                Left(Label(Id('text_label'), 'Text:')),
+                Left(MultiLineEdit(Id('text'), '')),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel')
+                ))),
+            ),
+            ['name', 'text'], # known keys
+            ['name', 'text'], # required keys
+            fqdn_hook, # dialog hook
             ],
         ]
 
@@ -1012,6 +1039,10 @@ class DNS:
                 if obj and obj['type'] == 'srv':
                     msg = self.conn.add_record(current_zone, current_parent, '%s.%s' % (obj['service'], obj['protocol']), 'SRV', '%s %d %d %d' % (obj['nameTarget'], obj['port'], obj['priority'], obj['weight']))
                     self.__refresh(zone=current_zone, top='%s.%s' % (obj['protocol'], current_parent), item=obj['service'], dns_type=dnsp.DNS_TYPE_SRV)
+                    self.__message(msg, buttons=['ok'])
+                elif obj and obj['type'] == 'txt':
+                    msg = self.conn.add_record(current_zone, current_parent, obj['name'], 'TXT', obj['text'])
+                    self.__refresh(item=obj['name'], dns_type=dnsp.DNS_TYPE_TXT)
                     self.__message(msg, buttons=['ok'])
             elif ret == 'delete':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
