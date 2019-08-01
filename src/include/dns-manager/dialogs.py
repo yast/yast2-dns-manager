@@ -321,11 +321,11 @@ class NewDialog:
                         RadioButtonGroup(VBox(
                             Left(RadioButton(Id('netid'), Opt('notify', 'immediate'), 'Network ID:', True)),
                             HBox(
-                                TextEntry(Id('id1'), Opt('notify', 'immediate'), ''),
+                                TextEntry(Id('id1'), Opt('notify'), ''),
                                 Label('.'),
-                                TextEntry(Id('id2'), Opt('notify', 'immediate'), ''),
+                                TextEntry(Id('id2'), Opt('notify'), ''),
                                 Label('.'),
-                                TextEntry(Id('id3'), Opt('notify', 'immediate'), ''),
+                                TextEntry(Id('id3'), Opt('notify'), ''),
                                 Label('.'),
                                 TextEntry(Opt('disabled'), ''),
                             ),
@@ -343,7 +343,7 @@ class NewDialog:
                     return VBox(
                         Left(Label('To name the reverse lookup zone, enter an IPv6 address prefix to auto generate the\nzone name.')),
                         Left(Label(Id('name_label'), 'IPv6 Address Prefix:')),
-                        Left(TextEntry(Id('prefix'), Opt('notify', 'immediate'), '')),
+                        Left(TextEntry(Id('prefix'), Opt('notify'), '')),
                         Left(Label('Reverse Lookup Zone')),
                         Left(TextEntry(Id('name'), Opt('disabled'), '')),
                         Bottom(Right(HBox(
@@ -414,7 +414,7 @@ class NewDialog:
             [VBox(
                 Left(Label('Specify the name of the DNS domain you want to delegate.')),
                 Left(Label(Id('name_label'), 'Delegated domain:')),
-                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
+                Left(TextEntry(Id('name'), Opt('notify'), '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Bottom(Right(HBox(
@@ -454,7 +454,7 @@ class NewDialog:
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Host or child domain:')),
-                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
+                Left(TextEntry(Id('name'), Opt('notify'), '')),
                 Left(Label('By default, DNS uses the parent domain name when creating a Mail\nExchange record. You can specify a host or child name, but in most\ndeployments, the above field is left blank.')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
@@ -495,7 +495,7 @@ class NewDialog:
                 Left(Label(Id('name_label'), 'Host IP Address:')),
                 HBox(
                     HWeight(1, Left(TextEntry(Opt('disabled'), '', name))),
-                    HWeight(2, Left(TextEntry(Id('name'), Opt('notify', 'immediate'), ''))),
+                    HWeight(2, Left(TextEntry(Id('name'), Opt('notify'), ''))),
                 ),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
@@ -520,7 +520,7 @@ class NewDialog:
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Alias name (uses parent domain if left blank):')),
-                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
+                Left(TextEntry(Id('name'), Opt('notify'), '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Left(Label(Id('data_label'), 'Fully qualified domain name (FQDN) for target host:')),
@@ -544,7 +544,7 @@ class NewDialog:
         return [
             [VBox(
                 Left(Label(Id('name_label'), 'Name (uses parent domain name if blank):')),
-                Left(TextEntry(Id('name'), Opt('notify', 'immediate'), '')),
+                Left(TextEntry(Id('name'), Opt('notify'), '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', self.parent)),
                 Left(Label(Id('data_label'), 'IP address:')),
