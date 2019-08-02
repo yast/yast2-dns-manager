@@ -167,3 +167,8 @@ class Connection:
         ret = SambaToolDnsAPI.create_zone(self.server, zone, self.creds.get_username(), self.creds.get_password())
         self.__refresh_zones()
         return ret
+
+    def update_record(self, zone, parent, name, rtype, newdata):
+        fqdn = '%s.%s' % (name, parent)
+        olddata = format_data(SambaToolDnsAPI.query(self.server, zone, fqdn, rtype, self.creds.get_username(), self.creds.get_password())['']['records'][0])
+        return SambaToolDnsAPI.update_record(self.server, zone, fqdn, rtype, olddata, newdata, self.creds.get_username(), self.creds.get_password())
