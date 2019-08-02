@@ -100,6 +100,8 @@ class ObjDialog:
             self.obj_type = 'host'
         if self.obj_type == 'ns' and self.update:
             self.subtitle = 'Name Servers'
+        if self.obj_type == 'soa':
+            self.subtitle = dns_type_name(dns_type_flag(self.obj_type))
         if self.obj_type == 'host':
             self.title = 'Host'
         if self.obj_type in ['cname', 'ptr', 'mx', 'srv', 'txt']:
@@ -174,6 +176,8 @@ class ObjDialog:
                 self.dialog = self.__srv_dialog()
             elif strcmp(self.obj_type, 'txt'):
                 self.dialog = self.__txt_dialog()
+            elif strcmp(self.obj_type, 'soa'):
+                self.dialog = self.__soa_dialog()
             elif not self.update:
                 self.dialog = self.__other_dialog()
             else:
@@ -181,6 +185,53 @@ class ObjDialog:
         if len(self.dialog)-1 < self.dialog_seq:
             self.dialog_seq -= 1
         return self.dialog[self.dialog_seq][0]() if callable(self.dialog[self.dialog_seq][0]) else self.dialog[self.dialog_seq][0]
+
+    def __soa_dialog(self):
+        return [
+            [VBox(
+                Left(Label(Id('serial_label'), 'Serial number:')),
+                Left(IntField(Id('serial'), '', 0, 99999, self.obj['serial'])),
+                VSpacing(1),
+                Left(Label(Id('ns_label'), 'Primary server:')),
+                Left(TextEntry(Id('ns'), '', self.obj['ns'])),
+                VSpacing(1),
+                Left(Label(Id('email_label'), 'Responsible person:')),
+                Left(TextEntry(Id('email'), '', self.obj['email'])),
+                VSpacing(1),
+                HBox(
+                    VBox(
+                        Left(Label(Id('refresh_label'), 'Refresh interval:')),
+                        Left(Label(Id('retry_label'), 'Retry interval:')),
+                        Left(Label(Id('expire_label'), 'Expires after:')),
+                        Left(Label(Id('minttl_label'), 'Minimum (default) TTL:')),
+                        Left(Label(Id('ttl_label'), 'TTL for this record:')),
+                    ),
+                    VBox(
+                        Left(IntField(Id('refresh'), '', 0, 99999, self.obj['refresh'])),
+                        Left(IntField(Id('retry'), '', 0, 99999, self.obj['retry'])),
+                        Left(IntField(Id('expire'), '', 0, 99999, self.obj['expire'])),
+                        Left(IntField(Id('minttl'), '', 0, 99999, self.obj['minttl'])),
+                        Left(IntField(Id('ttl'), '', 0, 99999, self.obj['ttl'])),
+                    ),
+                    VBox(
+                        Left(Label('seconds')),
+                        Left(Label('seconds')),
+                        Left(Label('seconds')),
+                        Left(Label('seconds')),
+                        Left(Label('seconds')),
+                    ),
+                ),
+                VSpacing(1),
+                Bottom(Right(HBox(
+                    PushButton(Id('finish'), 'OK'),
+                    PushButton(Id('cancel'), 'Cancel'),
+                ))),
+            ),
+            [], # known keys
+            [], # required keys
+            None, # dialog hook
+            ],
+        ]
 
     def __ns_properties_dialog(self):
         def name_servers_hook(ret):
