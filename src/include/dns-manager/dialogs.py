@@ -747,7 +747,7 @@ class ObjDialog:
             hook(ret)
 
     def Show(self):
-        UI.SetApplicationTitle(('%s Properties' % self.obj['name']) if self.update else 'New %s' % self.title)
+        UI.SetApplicationTitle(('%s Properties' % (self.obj['name'] if self.obj['name'] else self.parent)) if self.update else 'New %s' % self.title)
         UI.OpenDialog(self.__new())
         ret = None
         while True:
