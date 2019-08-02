@@ -752,7 +752,7 @@ class ObjDialog:
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
                 Left(Label(Id('data_label'), 'IP address:')),
                 Left(TextEntry(Id('data'), Opt('notify'), '', self.obj['data'] if self.update else '')),
-                Left(CheckBox(Id('create_ptr'), '%s associated pointer (PTR) record' % 'Update' if self.update else 'Create')),
+                Left(CheckBox(Id('create_ptr'), '%s associated pointer (PTR) record' % ('Update' if self.update else 'Create'))),
                 Empty() if self.update else Left(CheckBox(Id('allow_update'), Opt('disabled'), 'Allow any authenticated user to update DNS records with the\nsame owner name')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK' if self.update else 'Add %s' % self.obj_type.capitalize()),
