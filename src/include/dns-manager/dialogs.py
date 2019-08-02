@@ -15,7 +15,7 @@ import re
 from samba.dcerpc import dnsp
 from ipaddress import ip_address, IPv4Address, IPv6Address, ip_network
 from socket import getaddrinfo, gaierror
-from complex import dns_type_flag, dns_type_name
+from complex import dns_type_flag, dns_type_name, format_data
 
 class NameServer:
     def __init__(self, name='', ips=[]):
@@ -1070,25 +1070,13 @@ class DNS:
     def __add_record(self, zone, parent, record):
         msg = None
         if record['type'] == dnsp.DNS_TYPE_SRV:
-            msg = self.conn.add_record(zone, parent, '%s.%s' % (record['name'], record['protocol']), 'SRV', '%s %d %d %d' % (record['nameTarget'], record['port'], record['priority'], record['weight']))
+            msg = self.conn.add_record(zone, parent, '%s.%s' % (record['name'], record['protocol']), 'SRV', format_data(record))
             self.__refresh(zone=zone, top='%s.%s' % (record['protocol'], parent), item=record['name'], dns_type=dnsp.DNS_TYPE_SRV)
-        elif record['type'] == dnsp.DNS_TYPE_TXT:
-            msg = self.conn.add_record(zone, parent, record['name'], 'TXT', record['text'])
-            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_TXT)
-        elif record['type'] == dnsp.DNS_TYPE_CNAME:
-            msg = self.conn.add_record(zone, parent, record['name'], 'CNAME', record['data'])
-            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_CNAME)
-        elif record['type'] == dnsp.DNS_TYPE_PTR:
-            msg = self.conn.add_record(zone, parent, record['name'], 'PTR', record['data'])
-            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_PTR)
-        elif record['type'] == dnsp.DNS_TYPE_MX:
-            msg = self.conn.add_record(zone, parent, record['name'], 'MX', '%s %s' % (record['nameExchange'], record['preference']))
-            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_MX)
-        elif record['type'] == dnsp.DNS_TYPE_A:
+        elif record['type'] in [dnsp.DNS_TYPE_TXT, dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_MX, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
+            msg = self.conn.add_record(zone, parent, record['name'], dns_type_name(record['type'], short=True), format_data(record))
+            self.__refresh(item=record['name'], dns_type=record['type'])
+        if record['type'] == dnsp.DNS_TYPE_A:
             msg2 = None
-            msg = self.conn.add_record(zone, parent, record['name'], 'A', record['data'])
-            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_A)
-            ipvers = ip_address(record['data'])
             if record['create_ptr']:
                 ptr_parent = self.conn.match_zone(record['reverse_pointer'])
                 if not ptr_parent:
@@ -1101,8 +1089,6 @@ class DNS:
                 self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
         elif record['type'] == dnsp.DNS_TYPE_AAAA:
             msg2 = None
-            msg = self.conn.add_record(zone, parent, record['name'], 'AAAA', record['data'])
-            self.__refresh(item=record['name'], dns_type=dnsp.DNS_TYPE_AAAA)
             if record['create_ptr']:
                 ptr_parent = self.conn.match_zone(record['reverse_pointer'])
                 if not ptr_parent:

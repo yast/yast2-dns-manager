@@ -112,6 +112,18 @@ def dns_type_name(dns_type, short=False):
     else:
         return 'Unknown'
 
+def format_data(data):
+    if data['type'] in [dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
+        return data['data']
+    elif data['type'] == dnsp.DNS_TYPE_TXT:
+        return data['text']
+    elif data['type'] == dnsp.DNS_TYPE_MX:
+        return '%s %s' % (data['nameExchange'], data['preference'])
+    elif data['type'] == dnsp.DNS_TYPE_SOA:
+        return '%s %s %d %d %d %d %d' % (data['ns'], data['email'], data['serial'], data['refresh'], data['retry'], data['expire'], data['minttl'])
+    elif data['type'] == dnsp.DNS_TYPE_SRV:
+        return '%s %d %d %d' % (data['nameTarget'], data['port'], data['priority'], data['weight'])
+
 class Connection:
     def __init__(self, lp, creds, server):
         self.lp = lp
