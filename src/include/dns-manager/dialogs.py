@@ -1120,7 +1120,7 @@ class DNS:
                 else:
                     name = '%s.%s' % (record['name'], parent)
                     data = record['reverse_pointer'].split(ptr_parent)[0][:-1]
-                    msg2 = self.conn.update_record(ptr_parent, ptr_parent, data, 'PTR', name)
+                    msg2 = self.conn.add_record(ptr_parent, ptr_parent, data, 'PTR', name)
             if msg2 and msg2 != 'Record added successfully':
                 self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
         elif record['type'] == dnsp.DNS_TYPE_AAAA:
@@ -1132,7 +1132,7 @@ class DNS:
                 else:
                     name = '%s.%s' % (record['name'], parent)
                     data = record['reverse_pointer'].split(ptr_parent)[0][:-1]
-                    msg2 = self.conn.update_record(ptr_parent, ptr_parent, data, 'PTR', name)
+                    msg2 = self.conn.add_record(ptr_parent, ptr_parent, data, 'PTR', name)
             if msg2 and msg2 != 'Record added successfully':
                 self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
         if msg:
