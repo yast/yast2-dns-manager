@@ -1108,10 +1108,7 @@ class DNS:
 
     def __update_record(self, zone, parent, record):
         msg = None
-        if record['type'] == dnsp.DNS_TYPE_SRV:
-            msg = self.conn.update_record(zone, parent, '%s.%s' % (record['name'], record['protocol']), 'SRV', format_data(record))
-            self.__refresh(zone=zone, top='%s.%s' % (record['protocol'], parent), item=record['name'], dns_type=dnsp.DNS_TYPE_SRV)
-        elif record['type'] in [dnsp.DNS_TYPE_TXT, dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_MX, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
+        if record['type'] in [dnsp.DNS_TYPE_SRV, dnsp.DNS_TYPE_TXT, dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_MX, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
             msg = self.conn.update_record(zone, parent, record['name'], dns_type_name(record['type'], short=True), format_data(record))
             self.__refresh(item=record['name'], dns_type=record['type'])
         if record['type'] == dnsp.DNS_TYPE_A:
