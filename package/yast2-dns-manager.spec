@@ -23,7 +23,7 @@ Summary:        Samba Internal DNS Manager
 License:        GPL-3.0-only
 Group:          Productivity/Networking/Samba
 Url:            http://www.github.com/yast/yast2-dns-manager
-Source:         %{name}-v%{version}.tar.bz2
+Source:         %{name}-%{version}.tar.bz2
 BuildArch:      noarch
 Requires:       krb5-client
 Requires:       samba-client
@@ -43,7 +43,7 @@ BuildRequires:  rubygem(%rb_default_ruby_abi:yast-rake)
 DNS Manager for the Internal Samba Active Directory Domain Controller DNS server.
 
 %prep
-%setup -q -n %{name}-v%{version}
+%setup -q
 
 %build
 
