@@ -354,25 +354,29 @@ class ObjDialog:
         ]
 
     def __txt_dialog(self):
-        def fqdn_hook(ret):
-            name = UI.QueryWidget('name', 'Value')
-            UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+        def txt_hook(ret):
+            if ret == 'name':
+                name = UI.QueryWidget('name', 'Value')
+                UI.ChangeWidget('fqdn', 'Value', '%s.%s' % (name, self.parent))
+            elif ret == 'data':
+                data = UI.QueryWidget('data', 'Value')
+                UI.ChangeWidget('data', 'Value', re.sub(r'[^a-zA-Z0-9\s]', '', data))
         return [
             [VBox(
                 Left(Label('Record name (uses parent domain if left blank):')),
                 Left(TextEntry(Id('name'), Opt('disabled') if self.update else Opt('notify', 'hstretch'), self.obj['name'] if self.update else '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
-                Left(Label(Id('text_label'), 'Text:')),
-                Left(TextEntry(Id('text'), '', ' '.join(self.obj['data']) if self.update else '')),
+                Left(Label(Id('data_label'), 'Text:')),
+                Left(TextEntry(Id('data'), Opt('notify'), '', ' '.join(self.obj['data']) if self.update else '')),
                 Bottom(Right(HBox(
                     PushButton(Id('finish'), 'OK'),
                     PushButton(Id('cancel'), 'Cancel')
                 ))),
             ),
-            ['name', 'text'], # known keys
-            ['name', 'text'], # required keys
-            fqdn_hook, # dialog hook
+            ['name', 'data'], # known keys
+            ['name', 'data'], # required keys
+            txt_hook, # dialog hook
             ],
         ]
 

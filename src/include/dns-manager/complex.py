@@ -116,7 +116,10 @@ def format_data(data):
     if data['type'] in [dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
         return data['data']
     elif data['type'] == dnsp.DNS_TYPE_TXT:
-        return data['text']
+        if type(data['data']) == tuple:
+            return ' '.join(data['data'])
+        else:
+            return data['data']
     elif data['type'] == dnsp.DNS_TYPE_MX:
         return '%s %s' % (data['nameExchange'], data['preference'])
     elif data['type'] == dnsp.DNS_TYPE_SOA:
