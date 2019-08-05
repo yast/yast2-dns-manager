@@ -1008,9 +1008,11 @@ class DNS:
                     self.__setup_menus(mtype='object')
             elif ret == 'properties':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
-                record = self.conn.records(zone, current_selection)['']
+                choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
+                result = self.conn.records(zone, top)
+                record = result[choice] if result and choice in result else None
                 if record:
-                    obj = ObjDialog(dns_type_name(int(current_dns_type), short=True), top, current_selection.split(top)[0], record).Show()
+                    obj = ObjDialog(dns_type_name(int(dns_type), short=True), top, choice, record).Show()
                     if obj:
                         self.__update_record(zone, top, obj)
             elif ret == 'new_host':
