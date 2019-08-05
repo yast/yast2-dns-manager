@@ -113,7 +113,7 @@ def dns_type_name(dns_type, short=False):
         return 'Unknown'
 
 def format_data(data):
-    if data['type'] in [dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA]:
+    if data['type'] in [dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA, dnsp.DNS_TYPE_NS]:
         return data['data']
     elif data['type'] == dnsp.DNS_TYPE_TXT:
         if type(data['data']) == tuple:

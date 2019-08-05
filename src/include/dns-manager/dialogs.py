@@ -1148,16 +1148,7 @@ class DNS:
             if rec['type'] == record_type:
                 srecord = rec
                 break
-        if record_type in [dnsp.DNS_TYPE_A, dnsp.DNS_TYPE_AAAA, dnsp.DNS_TYPE_PTR, dnsp.DNS_TYPE_CNAME, dnsp.DNS_TYPE_NS]:
-            return srecord['data']
-        elif record_type == dnsp.DNS_TYPE_MX:
-            return '%s %d' % (srecord['nameExchange'], srecord['preference'])
-        elif record_type == dnsp.DNS_TYPE_SRV:
-            return '%s %d %d %d' % (srecord['nameTarget'], srecord['port'], srecord['priority'], srecord['weight'])
-        elif record_type == dnsp.DNS_TYPE_TXT:
-            return ' '.join(srecord['data'])
-        return None
-
+        return format_data(srecord)
 
     def __refresh(self, zone=None, top=None, item=None, dns_type=None):
         if not top:
