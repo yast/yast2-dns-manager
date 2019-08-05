@@ -940,6 +940,31 @@ class DNS:
             menus.append({'title': 'Properties', 'id': 'properties', 'type': 'MenuEntry', 'parent': 'action'})
         CreateMenu(menus)
 
+    def __open_context_menu(self, mtype=None):
+        menus = []
+        if mtype and mtype == 'top':
+            menus.append(Item(Id('connect'), 'Connect to DNS Server...'))
+        elif mtype and mtype == 'zones':
+            menus.append(Item(Id('new_zone'), 'New Zone...'))
+        if mtype and mtype in ['fzone', 'folder']:
+            menus.append(Item(Id('new_host'), 'New Host (A or AAAA)...'))
+            menus.append(Item(Id('new_alias'), 'New Alias (CNAME)...'))
+            menus.append(Item(Id('new_mx'), 'New Mail Exchanger (MX)...'))
+        if mtype and mtype in ['rzone']:
+            menus.append(Item(Id('new_pointer'), 'New Pointer (PTR)...'))
+            menus.append(Item(Id('new_alias'), 'New Alias (CNAME)...'))
+        if mtype and mtype in ['fzone', 'rzone', 'folder']:
+            menus.append(Item(Id('new_delegation'), 'New Delegation...'))
+            menus.append(Item(Id('other_new_records'), 'Other New Records...'))
+        if mtype and mtype in ['object', 'fzone', 'rzone']:
+            menus.append(Item(Id('delete'), 'Delete'))
+        if mtype and mtype in ['zones', 'fzone', 'rzone', 'folder']:
+            menus.append(Item(Id('refresh'), 'Refresh'))
+        if mtype and mtype == 'object':
+            menus.append(Item(Id('properties'), 'Properties'))
+        self.menu_open = True
+        UI.OpenContextMenu(Term('menu', menus))
+
     def Show(self):
         UI.SetApplicationTitle('DNS Manager')
         Wizard.SetContentsButtons('', self.__dns_page(), '', '', '')
@@ -949,6 +974,7 @@ class DNS:
         current_parent = None
         current_dns_type = None
         current_zone = None
+        self.menu_open = False
         while True:
             event = UI.WaitForEvent()
             if 'WidgetID' in event:
@@ -957,7 +983,11 @@ class DNS:
                 ret = event['ID']
             else:
                 raise Exception('ID not found in response %s' % str(event))
-            if ret == 'abort' or ret == 'cancel':
+            if ret != 'abort' and ret != 'cancel':
+                self.menu_open = False
+            if (ret == 'abort' or ret == 'cancel') and self.menu_open:
+                self.menu_open = False
+            elif ret == 'abort' or ret == 'cancel':
                 break
             elif ret == 'connect':
                 self.conn = ConnectionDialog().Show()
@@ -973,16 +1003,26 @@ class DNS:
                         UI.ReplaceWidget('rightPane', self.__rightpane(records, choice))
                     if choice in self.conn.forward_zones():
                         self.__setup_menus(mtype='fzone')
+                        if event['EventReason'] == 'ContextMenuActivated':
+                            self.__open_context_menu(mtype='fzone')
                     elif choice in self.conn.reverse_zones():
                         self.__setup_menus(mtype='rzone')
+                        if event['EventReason'] == 'ContextMenuActivated':
+                            self.__open_context_menu(mtype='rzone')
                     else:
                         self.__setup_menus(mtype='folder')
+                        if event['EventReason'] == 'ContextMenuActivated':
+                            self.__open_context_menu(mtype='folder')
                 elif choice in ['forward', 'reverse']:
                     UI.ReplaceWidget('rightPane', self.__rightpane_zones(choice))
                     self.__setup_menus(mtype='zones')
+                    if event['EventReason'] == 'ContextMenuActivated':
+                        self.__open_context_menu(mtype='zones')
                 elif choice == 'dns_edit':
                     UI.ReplaceWidget('rightPane', Empty())
                     self.__setup_menus(mtype='top')
+                    if event['EventReason'] == 'ContextMenuActivated':
+                        self.__open_context_menu(mtype='top')
                 else:
                     UI.ReplaceWidget('rightPane', Empty())
                     self.__setup_menus()
@@ -1000,12 +1040,16 @@ class DNS:
                     if event['EventReason'] == 'Activated':
                         self.__refresh(zone=zone, top=nchoice)
                     self.__setup_menus(mtype='folder')
+                    if event['EventReason'] == 'ContextMenuActivated':
+                        self.__open_context_menu(mtype='folder')
                 elif record:
                     if event['EventReason'] == 'Activated':
                         obj = ObjDialog(dns_type_name(int(dns_type), short=True), top, choice, record).Show()
                         if obj:
                             self.__update_record(zone, top, obj)
                     self.__setup_menus(mtype='object')
+                    if event['EventReason'] == 'ContextMenuActivated':
+                        self.__open_context_menu(mtype='object')
             elif ret == 'properties':
                 zone, top = UI.QueryWidget('dns_tree', 'Value').split(':')
                 choice, dns_type = UI.QueryWidget('items', 'Value').split(':')
