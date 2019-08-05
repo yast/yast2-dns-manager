@@ -234,6 +234,7 @@ class ObjDialog:
         ]
 
     def __ns_properties_dialog(self):
+        self.obj['type'] = dnsp.DNS_TYPE_NS
         def name_servers_hook(ret):
             if 'data' not in self.obj:
                 self.obj['data'] = []
@@ -1139,6 +1140,25 @@ class DNS:
                     msg2 = self.conn.add_record(ptr_parent, ptr_parent, data, 'PTR', name)
             if msg2 and msg2 != 'Record added successfully':
                 self.__message('Warning: The associated pointer (PTR) record cannot be created: %s' % msg2, warn=True, buttons=['ok'])
+        elif record['type'] == dnsp.DNS_TYPE_NS:
+            if not record['name']:
+                name = parent.split('.')[-1]
+                parent = '.'.join(parent.split('.')[:-1])
+            else:
+                name = record['name']
+            oldservers = [data['data'] for data in self.conn.records(zone, '%s.%s' % (name, parent))['']['records'] if data['type'] == dnsp.DNS_TYPE_NS]
+            newservers = [data[0] for data in record['data']]
+            for server in oldservers:
+                if server not in newservers:
+                    msg2 = self.conn.delete_record(zone, '%s.%s' % (name, parent), 'NS', server)
+                    if msg2 != 'Record deleted successfully':
+                        self.__message(msg2, buttons=['ok'])
+            for server in newservers:
+                if server not in oldservers:
+                    msg2 = self.conn.add_record(zone, parent, name, 'NS', server)
+                    if msg2 != 'Record added successfully':
+                        self.__message(msg2, buttons=['ok'])
+            self.__refresh(item=name, dns_type=record['type'])
         if msg:
             self.__message(msg, buttons=['ok'])
 
