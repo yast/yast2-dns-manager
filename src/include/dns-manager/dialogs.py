@@ -365,7 +365,7 @@ class ObjDialog:
         return [
             [VBox(
                 Left(Label('Record name (uses parent domain if left blank):')),
-                Left(TextEntry(Id('name'), Opt('disabled') if self.update else Opt('notify', 'hstretch'), self.obj['name'] if self.update else '')),
+                Left(TextEntry(Id('name'), Opt('disabled') if self.update else Opt('notify', 'hstretch'), '', self.obj['name'] if self.update else '')),
                 Left(Label('Fully qualified domain name (FQDN):')),
                 Left(TextEntry(Id('fqdn'), Opt('disabled'), '', '%s.%s' % (self.obj['name'], self.parent) if self.update else self.parent)),
                 Left(Label(Id('data_label'), 'Text:')),
